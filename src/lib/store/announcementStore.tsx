@@ -10,7 +10,7 @@ import {
   AppUser
 } from '../types';
 import { MOCK_ANNOUNCEMENTS, MOCK_EVENTS, MOCK_COMMENTS, MOCK_APP_USERS } from '../mockData';
-import { getSupabaseClient, isSupabaseConfigured, getSupabaseUrl, setSupabaseConfig } from '../supabase';
+import { getSupabaseClient, isSupabaseConfigured, getSupabaseUrl, setSupabaseConfig, cleanSupabaseUrl, cleanSupabaseKey } from '../supabase';
 
 interface AnnouncementStoreContextType {
   currentUser: AppUser | null;
@@ -143,7 +143,11 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       const customUrl = localStorage.getItem('pulseboard_supabase_url');
       const customKey = localStorage.getItem('pulseboard_supabase_key');
       if (customUrl && customKey) {
-        setSupabaseConfig(customUrl, customKey);
+        const cleanedUrl = cleanSupabaseUrl(customUrl);
+        const cleanedKey = cleanSupabaseKey(customKey);
+        localStorage.setItem('pulseboard_supabase_url', cleanedUrl);
+        localStorage.setItem('pulseboard_supabase_key', cleanedKey);
+        setSupabaseConfig(cleanedUrl, cleanedKey);
         setIsSupabaseLive(true);
       }
 
@@ -255,11 +259,13 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   // Connect custom Supabase credentials from UI (for localhost)
   const connectCustomSupabase = (url: string, key: string): boolean => {
     if (url && key && url.trim() && key.trim()) {
+      const cleanUrl = cleanSupabaseUrl(url);
+      const cleanKey = cleanSupabaseKey(key);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('pulseboard_supabase_url', url.trim());
-        localStorage.setItem('pulseboard_supabase_key', key.trim());
+        localStorage.setItem('pulseboard_supabase_url', cleanUrl);
+        localStorage.setItem('pulseboard_supabase_key', cleanKey);
       }
-      setSupabaseConfig(url.trim(), key.trim());
+      setSupabaseConfig(cleanUrl, cleanKey);
       setIsSupabaseLive(true);
       refreshData();
       return true;
@@ -340,6 +346,12 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
         };
       }
       if (serverErrorMessage) {
+        if (serverErrorMessage.includes('Invalid path') || serverErrorMessage.includes('Invalid URL')) {
+          return {
+            success: false,
+            message: `Database error: "${serverErrorMessage}". Your Supabase URL must be only "https://<project-ref>.supabase.co" without any "/rest/v1" or trailing slash.`
+          };
+        }
         return {
           success: false,
           message: `Database error: ${serverErrorMessage}`

@@ -1,16 +1,20 @@
 import { NextResponse } from 'next/server';
+import { cleanSupabaseUrl, cleanSupabaseKey } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const url =
+  const rawUrl =
     process.env.SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     '';
-  const anonKey =
+  const rawKey =
     process.env.SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     '';
+
+  const url = cleanSupabaseUrl(rawUrl);
+  const anonKey = cleanSupabaseKey(rawKey);
 
   const isConfigured = Boolean(
     url &&
