@@ -1,69 +1,148 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
 
-export default function Home() {
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { Sparkles, PlusCircle, Filter } from 'lucide-react';
+import { useAnnouncementStore } from '@/lib/store/announcementStore';
+import { UrgentAlertBanner } from '@/components/feed/UrgentAlertBanner';
+import { FeedFilters } from '@/components/feed/FeedFilters';
+import { AnnouncementCard } from '@/components/feed/AnnouncementCard';
+
+export default function HomeFeedPage() {
+  const { announcements, currentUser } = useAnnouncementStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedPriority, setSelectedPriority] = useState('ALL');
+
+  const isAdminOrContributor = ['super_admin', 'hr_admin', 'contributor'].includes(currentUser.role);
+
+  // Filter urgent announcements requiring sign-off
+  const urgentUnacknowledged = announcements.filter(
+    (a) => a.priority === 'URGENT' && a.requires_acknowledgement && !a.user_acknowledged && a.status === 'PUBLISHED'
+  );
+
+  // Compute category counts
+  const categoryCounts = announcements.reduce((acc, a) => {
+    if (a.status === 'PUBLISHED') {
+      acc[a.category] = (acc[a.category] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Filter announcements for the stream
+  const filteredAnnouncements = announcements
+    .filter((a) => {
+      // Show published posts (or all if admin)
+      if (a.status !== 'PUBLISHED' && !isAdminOrContributor) return false;
+
+      // Category filter
+      if (selectedCategory !== 'ALL' && a.category !== selectedCategory) return false;
+
+      // Priority filter
+      if (selectedPriority !== 'ALL' && a.priority !== selectedPriority) return false;
+
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesTitle = a.title.toLowerCase().includes(q);
+        const matchesSummary = a.summary.toLowerCase().includes(q);
+        const matchesAuthor = a.author?.full_name.toLowerCase().includes(q);
+        const matchesTarget = a.target_value?.toLowerCase().includes(q);
+        return matchesTitle || matchesSummary || matchesAuthor || matchesTarget;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      // Pinned first, then by date descending
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Top Welcome & Feed Banner */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16,
+          marginBottom: 8
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 4 }}>
+            Company Announcement Stream
           </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+            Official broadcasts, critical policy updates, and team highlights for {currentUser.department}.
           </p>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {isAdminOrContributor && (
+          <Link href="/admin/create" className="btn btn-primary" style={{ gap: 8 }}>
+            <PlusCircle size={16} />
+            <span>Create Announcement</span>
+          </Link>
+        )}
+      </div>
+
+      {/* Urgent Critical Alert Banner */}
+      <UrgentAlertBanner urgentAnnouncements={urgentUnacknowledged} />
+
+      {/* Filter and Search Bar */}
+      <FeedFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        selectedPriority={selectedPriority}
+        setSelectedPriority={setSelectedPriority}
+        categoryCounts={categoryCounts}
+      />
+
+      {/* Announcement Cards Stream */}
+      <div>
+        {filteredAnnouncements.length === 0 ? (
+          <div
+            className="glass-panel"
+            style={{
+              padding: 48,
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 12
+            }}
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+            <Filter size={36} color="var(--text-muted)" />
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+              No announcements match your filter
+            </h3>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 400 }}>
+              Try adjusting your search terms, clearing category filters, or switching priority levels.
+            </p>
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('ALL');
+                setSelectedPriority('ALL');
+              }}
+              className="btn btn-secondary btn-sm"
+              style={{ marginTop: 8 }}
+            >
+              Reset All Filters
+            </button>
+          </div>
+        ) : (
+          filteredAnnouncements.map((ann) => (
+            <AnnouncementCard key={ann.id} announcement={ann} />
+          ))
+        )}
+      </div>
     </div>
   );
 }
