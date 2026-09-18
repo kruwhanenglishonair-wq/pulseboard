@@ -10,7 +10,7 @@ import {
   AppUser
 } from '../types';
 import { MOCK_ANNOUNCEMENTS, MOCK_EVENTS, MOCK_COMMENTS, MOCK_APP_USERS } from '../mockData';
-import { getSupabaseClient, isSupabaseConfigured } from '../supabase';
+import { getSupabaseClient, isSupabaseConfigured, getSupabaseUrl } from '../supabase';
 
 interface AnnouncementStoreContextType {
   currentUser: AppUser | null;
@@ -20,25 +20,28 @@ interface AnnouncementStoreContextType {
   events: CompanyEvent[];
   comments: Record<string, Comment[]>;
   isOffline: boolean;
+  isSupabaseLive: boolean;
+  supabaseEndpoint: string;
+  refreshData: () => Promise<void>;
   
   // Auth Actions
-  login: (email: string, password?: string, rememberMe?: boolean) => {
+  login: (email: string, password?: string, rememberMe?: boolean) => Promise<{
     success: boolean;
     requiresPasswordSetup?: boolean;
     user?: AppUser;
     message?: string;
-  };
-  setPassword: (email: string, newPassword: string, rememberMe?: boolean) => {
+  }>;
+  setPassword: (email: string, newPassword: string, rememberMe?: boolean) => Promise<{
     success: boolean;
     user: AppUser;
-  };
+  }>;
   logout: () => void;
   switchUser: (userId: string) => void;
 
   // Dementor User Management
-  addUser: (userData: { email: string; nickname: string; department?: string; location?: string }) => AppUser;
-  updateUser: (id: string, userData: Partial<AppUser>) => void;
-  deleteUser: (id: string) => void;
+  addUser: (userData: { email: string; nickname: string; department?: string; location?: string }) => Promise<AppUser>;
+  updateUser: (id: string, userData: Partial<AppUser>) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
 
   // Post Actions
   acknowledgeAnnouncement: (announcementId: string) => void;
@@ -138,22 +141,24 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
         if (supabase) {
-          supabase.from('app_users').select('*').then(({ data, error }) => {
-            if (data && data.length > 0) {
+          supabase.from('app_users').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+            if (data) {
               setAppUsers(data);
               localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(data));
             }
           });
 
-          supabase.from('announcements').select('*').order('created_at', { ascending: false }).then(({ data }) => {
-            if (data && data.length > 0) {
+          supabase.from('announcements').select('*').order('scheduled_at', { ascending: false }).then(({ data }) => {
+            if (data) {
               setAnnouncements(data as any);
+              localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(data));
             }
           });
 
           supabase.from('company_events').select('*').order('start_time', { ascending: true }).then(({ data }) => {
-            if (data && data.length > 0) {
+            if (data) {
               setEvents(data as any);
+              localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(data));
             }
           });
         }
@@ -167,6 +172,43 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  const refreshData = async () => {
+    if (!isSupabaseConfigured()) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    try {
+      const [usersRes, annRes, eventsRes] = await Promise.all([
+        supabase.from('app_users').select('*').order('created_at', { ascending: false }),
+        supabase.from('announcements').select('*').order('scheduled_at', { ascending: false }),
+        supabase.from('company_events').select('*').order('start_time', { ascending: true })
+      ]);
+
+      if (usersRes.data) {
+        setAppUsers(usersRes.data);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(usersRes.data));
+        }
+      }
+
+      if (annRes.data) {
+        setAnnouncements(annRes.data as any);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(annRes.data));
+        }
+      }
+
+      if (eventsRes.data) {
+        setEvents(eventsRes.data as any);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(eventsRes.data));
+        }
+      }
+    } catch (err) {
+      console.warn('Error refreshing from Supabase:', err);
+    }
+  };
 
   const saveUsers = (updated: AppUser[]) => {
     setAppUsers(updated);
@@ -182,10 +224,39 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     }
   };
 
-  // Auth: Login function
-  const login = (email: string, password?: string, rememberMe: boolean = true) => {
+  // Auth: Login function (Live query to Supabase)
+  const login = async (email: string, password?: string, rememberMe: boolean = true) => {
     const cleanEmail = email.trim().toLowerCase();
-    const user = appUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+
+    let user: AppUser | undefined = undefined;
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('app_users')
+            .select('*')
+            .eq('email', cleanEmail)
+            .maybeSingle();
+
+          if (data) {
+            user = data;
+            setAppUsers((prev) => {
+              const exists = prev.some((u) => u.id === data.id);
+              if (exists) return prev.map((u) => (u.id === data.id ? data : u));
+              return [data, ...prev];
+            });
+          }
+        } catch (e) {
+          console.warn('Supabase query error on login:', e);
+        }
+      }
+    }
+
+    if (!user) {
+      user = appUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+    }
 
     if (!user) {
       return {
@@ -228,8 +299,20 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   };
 
   // Auth: First-time set password
-  const setPassword = (email: string, newPassword: string, rememberMe: boolean = true) => {
+  const setPassword = async (email: string, newPassword: string, rememberMe: boolean = true) => {
     const cleanEmail = email.trim().toLowerCase();
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          await supabase.from('app_users').update({ password: newPassword }).eq('email', cleanEmail);
+        } catch (e) {
+          console.warn('Supabase setPassword error:', e);
+        }
+      }
+    }
+
     const updatedUsers = appUsers.map((u) => {
       if (u.email.toLowerCase() === cleanEmail) {
         return {
@@ -250,15 +333,6 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
         localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(updatedUser));
       } else {
         sessionStorage.setItem(STORAGE_KEYS.SESSION_USER, JSON.stringify(updatedUser));
-      }
-    }
-
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        supabase.from('app_users').update({ password: newPassword }).eq('email', cleanEmail).then(({ error }) => {
-          if (error) console.error('Supabase setPassword error:', error);
-        });
       }
     }
 
@@ -285,7 +359,7 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   };
 
   // Dementor: Add new user (password is null by default!)
-  const addUser = (userData: { email: string; nickname: string; department?: string; location?: string }): AppUser => {
+  const addUser = async (userData: { email: string; nickname: string; department?: string; location?: string }): Promise<AppUser> => {
     const isDem = userData.nickname.toLowerCase().startsWith('dementor');
     const newUser: AppUser = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `user-${Date.now()}`,
@@ -299,13 +373,10 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       created_at: new Date().toISOString()
     };
 
-    const updated = [newUser, ...appUsers];
-    saveUsers(updated);
-
     if (isSupabaseConfigured()) {
       const supabase = getSupabaseClient();
       if (supabase) {
-        supabase.from('app_users').insert([{
+        const { error } = await supabase.from('app_users').insert([{
           id: newUser.id,
           email: newUser.email,
           nickname: newUser.nickname,
@@ -314,17 +385,18 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
           department: newUser.department,
           location: newUser.location,
           avatar_url: newUser.avatar_url
-        }]).then(({ error }) => {
-          if (error) console.error('Supabase addUser error:', error);
-        });
+        }]);
+        if (error) console.error('Supabase addUser error:', error);
       }
     }
 
+    const updated = [newUser, ...appUsers.filter((u) => u.email !== newUser.email)];
+    saveUsers(updated);
     return newUser;
   };
 
   // Dementor: Edit user
-  const updateUser = (id: string, userData: Partial<AppUser>) => {
+  const updateUser = async (id: string, userData: Partial<AppUser>) => {
     const updated = appUsers.map((u) => {
       if (u.id === id) {
         const isDem = (userData.nickname || u.nickname).toLowerCase().startsWith('dementor');
@@ -348,24 +420,22 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     if (isSupabaseConfigured()) {
       const supabase = getSupabaseClient();
       if (supabase) {
-        supabase.from('app_users').update(userData).eq('id', id).then(({ error }) => {
-          if (error) console.error('Supabase updateUser error:', error);
-        });
+        const { error } = await supabase.from('app_users').update(userData).eq('id', id);
+        if (error) console.error('Supabase updateUser error:', error);
       }
     }
   };
 
   // Dementor: Delete user
-  const deleteUser = (id: string) => {
+  const deleteUser = async (id: string) => {
     const updated = appUsers.filter((u) => u.id !== id);
     saveUsers(updated);
 
     if (isSupabaseConfigured()) {
       const supabase = getSupabaseClient();
       if (supabase) {
-        supabase.from('app_users').delete().eq('id', id).then(({ error }) => {
-          if (error) console.error('Supabase deleteUser error:', error);
-        });
+        const { error } = await supabase.from('app_users').delete().eq('id', id);
+        if (error) console.error('Supabase deleteUser error:', error);
       }
     }
   };
@@ -621,6 +691,9 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
         events,
         comments,
         isOffline,
+        isSupabaseLive: isSupabaseConfigured(),
+        supabaseEndpoint: getSupabaseUrl(),
+        refreshData,
         login,
         setPassword,
         logout,

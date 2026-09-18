@@ -7,10 +7,14 @@ export const isSupabaseConfigured = (): boolean => {
   return Boolean(
     supabaseUrl &&
     supabaseAnonKey &&
+    supabaseUrl.trim() !== '' &&
+    supabaseAnonKey.trim() !== '' &&
     supabaseUrl !== 'https://your-project.supabase.co' &&
     !supabaseUrl.includes('your-project')
   );
 };
+
+export const getSupabaseUrl = (): string => supabaseUrl;
 
 let supabaseInstance: SupabaseClient | null = null;
 
@@ -19,7 +23,11 @@ export const getSupabaseClient = (): SupabaseClient | null => {
     return null;
   }
   if (!supabaseInstance) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false
+      }
+    });
   }
   return supabaseInstance;
 };

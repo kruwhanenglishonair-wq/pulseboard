@@ -19,7 +19,7 @@ import { useToast } from '@/components/ui/Toast';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, setPassword } = useAnnouncementStore();
+  const { login, setPassword, isSupabaseLive, supabaseEndpoint } = useAnnouncementStore();
   const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
@@ -34,13 +34,13 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [targetUserNickname, setTargetUserNickname] = useState('');
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
 
     setLoading(true);
 
-    const result = login(email, password, rememberMe);
+    const result = await login(email, password, rememberMe);
 
     if (result.requiresPasswordSetup && result.user) {
       setIsFirstTimeSetup(true);
@@ -61,7 +61,7 @@ export default function LoginPage() {
     router.push('/');
   };
 
-  const handleSetupPasswordSubmit = (e: React.FormEvent) => {
+  const handleSetupPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword.trim()) {
       showToast('Please enter a password', 'error');
@@ -73,7 +73,7 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    const result = setPassword(email, newPassword, rememberMe);
+    const result = await setPassword(email, newPassword, rememberMe);
     showToast(`Account activated! Welcome, ${result.user.nickname}`, 'success');
     setLoading(false);
     router.push('/');
@@ -103,7 +103,7 @@ export default function LoginPage() {
         }}
       >
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div
             style={{
               width: 52,
@@ -125,7 +125,29 @@ export default function LoginPage() {
           <p style={{ fontSize: 13, color: '#64748b' }}>
             Internal Company Announcement & Compliance Hub
           </p>
+
+          {/* Supabase Status Pill */}
+          <div style={{ marginTop: 10 }}>
+            {isSupabaseLive ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, background: '#ecfdf5', color: '#059669', fontSize: 11, fontWeight: 700 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+                <span>Live Supabase Connected</span>
+              </div>
+            ) : (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, background: '#fef2f2', color: '#dc2626', fontSize: 11, fontWeight: 700 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} />
+                <span>Supabase Disconnected (Offline Mode)</span>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Notice if Supabase not configured */}
+        {!isSupabaseLive && (
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fef3c7', color: '#b45309', fontSize: 12, marginBottom: 18, lineHeight: 1.5 }}>
+            <strong>Notice:</strong> Supabase environment variables are missing in <code>.env.local</code>. Paste your Supabase URL & Anon Key to view live database rows.
+          </div>
+        )}
 
         {/* Regular Login or First-time password setup */}
         {!isFirstTimeSetup ? (

@@ -17,18 +17,30 @@ import {
   MapPin,
   Lock,
   Unlock,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 import { AppUser } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
 
 export default function UsersManagementPage() {
-  const { appUsers, currentUser, isDementor, addUser, updateUser, deleteUser } = useAnnouncementStore();
+  const {
+    appUsers,
+    currentUser,
+    isDementor,
+    isSupabaseLive,
+    supabaseEndpoint,
+    refreshData,
+    addUser,
+    updateUser,
+    deleteUser
+  } = useAnnouncementStore();
   const { showToast } = useToast();
 
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Add User Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -43,6 +55,13 @@ export default function UsersManagementPage() {
   const [editDept, setEditDept] = useState('');
   const [editLoc, setEditLoc] = useState('');
   const [editPassword, setEditPassword] = useState('');
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshData();
+    setIsRefreshing(false);
+    showToast('Refreshed data from Supabase database!', 'success');
+  };
 
   // Access check
   if (!isDementor) {
@@ -74,14 +93,14 @@ export default function UsersManagementPage() {
     }
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail.trim() || !newNickname.trim()) {
       showToast('Please enter both company email and nickname.', 'error');
       return;
     }
 
-    addUser({
+    await addUser({
       email: newEmail.trim(),
       nickname: newNickname.trim(),
       department: newDept,
@@ -102,11 +121,11 @@ export default function UsersManagementPage() {
     setEditPassword(user.password || '');
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
 
-    updateUser(editingUser.id, {
+    await updateUser(editingUser.id, {
       nickname: editNickname.trim(),
       department: editDept,
       location: editLoc,
@@ -117,9 +136,9 @@ export default function UsersManagementPage() {
     showToast(`Updated profile for ${editNickname}!`, 'success');
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to remove user "${name}" from the company directory?`)) {
-      deleteUser(id);
+      await deleteUser(id);
       showToast(`Removed ${name}.`, 'info');
     }
   };
@@ -158,19 +177,47 @@ export default function UsersManagementPage() {
               Dementor User Management Console
             </h1>
           </div>
-          <p style={{ fontSize: 14, color: '#64748b' }}>
-            Manage employee directory credentials. View plain-text passwords to assist employees who forget theirs.
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+            <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
+              Manage employee directory credentials. View plain-text passwords to assist employees who forget theirs.
+            </p>
+            {isSupabaseLive ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 12, background: '#ecfdf5', color: '#059669', fontSize: 11, fontWeight: 700 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+                <span>Supabase Live DB</span>
+              </span>
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 12, background: '#fef2f2', color: '#dc2626', fontSize: 11, fontWeight: 700 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} />
+                <span>Local Cache (Supabase env empty)</span>
+              </span>
+            )}
+          </div>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-primary"
-          style={{ gap: 8 }}
-        >
-          <UserPlus size={16} />
-          <span>Add New Employee</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isSupabaseLive && (
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="btn btn-secondary btn-sm"
+              style={{ gap: 6 }}
+              title="Pull latest rows from Supabase"
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              <span>{isRefreshing ? 'Syncing...' : 'Sync DB'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary"
+            style={{ gap: 8 }}
+          >
+            <UserPlus size={16} />
+            <span>Add New Employee</span>
+          </button>
+        </div>
       </div>
 
       {/* Info Notice Box */}
