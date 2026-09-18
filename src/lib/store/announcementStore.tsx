@@ -23,6 +23,7 @@ interface AnnouncementStoreContextType {
   isSupabaseLive: boolean;
   supabaseEndpoint: string;
   refreshData: () => Promise<void>;
+  connectCustomSupabase: (url: string, key: string) => boolean;
   
   // Auth Actions
   login: (email: string, password?: string, rememberMe?: boolean) => Promise<{
@@ -138,6 +139,14 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       const storedAcks = localStorage.getItem(STORAGE_KEYS.ACKS);
       if (storedAcks) setAcknowledgements(JSON.parse(storedAcks));
 
+      // Check for locally saved custom credentials (useful when testing on localhost)
+      const customUrl = localStorage.getItem('pulseboard_supabase_url');
+      const customKey = localStorage.getItem('pulseboard_supabase_key');
+      if (customUrl && customKey) {
+        setSupabaseConfig(customUrl, customKey);
+        setIsSupabaseLive(true);
+      }
+
       // 4. Fetch server configuration (reads Vercel SUPABASE_URL / SUPABASE_ANON_KEY)
       fetch('/api/config/supabase')
         .then((res) => res.json())
@@ -243,17 +252,34 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     }
   };
 
+  // Connect custom Supabase credentials from UI (for localhost)
+  const connectCustomSupabase = (url: string, key: string): boolean => {
+    if (url && key && url.trim() && key.trim()) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pulseboard_supabase_url', url.trim());
+        localStorage.setItem('pulseboard_supabase_key', key.trim());
+      }
+      setSupabaseConfig(url.trim(), key.trim());
+      setIsSupabaseLive(true);
+      refreshData();
+      return true;
+    }
+    return false;
+  };
+
   // Auth: Login function (Live query to Supabase via server API and client fallback)
   const login = async (email: string, password?: string, rememberMe: boolean = true) => {
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = email.trim();
 
     let user: AppUser | undefined = undefined;
+    let serverErrorMessage: string | null = null;
+    let serverUnconfigured = false;
 
     // 1. Query live server endpoint (which reads SUPABASE_URL and SUPABASE_ANON_KEY on Vercel server)
     try {
       const res = await fetch(`/api/app-users?email=${encodeURIComponent(cleanEmail)}`);
+      const json = await res.json();
       if (res.ok) {
-        const json = await res.json();
         if (json.success && json.user) {
           user = json.user;
           setAppUsers((prev) => {
@@ -261,6 +287,12 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
             if (exists) return prev.map((u) => (u.id === json.user.id ? json.user : u));
             return [json.user, ...prev];
           });
+        }
+      } else {
+        if (res.status === 503 || json.error?.includes('not configured')) {
+          serverUnconfigured = true;
+        } else if (json.error) {
+          serverErrorMessage = json.error;
         }
       }
     } catch (e) {
@@ -272,11 +304,15 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       const supabase = getSupabaseClient();
       if (supabase) {
         try {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('app_users')
             .select('*')
-            .eq('email', cleanEmail)
+            .ilike('email', cleanEmail)
             .maybeSingle();
+
+          if (error && !serverErrorMessage) {
+            serverErrorMessage = error.message;
+          }
 
           if (data) {
             user = data;
@@ -293,13 +329,25 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     }
 
     if (!user) {
-      user = appUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+      user = appUsers.find((u) => u.email.toLowerCase() === cleanEmail.toLowerCase());
     }
 
     if (!user) {
+      if (serverUnconfigured && !isSupabaseConfigured()) {
+        return {
+          success: false,
+          message: 'Supabase is not connected to this local server (localhost:3000). Since you added the variables to Vercel, please test directly on your Vercel URL, or enter your Supabase URL & Anon Key on this page to test locally.'
+        };
+      }
+      if (serverErrorMessage) {
+        return {
+          success: false,
+          message: `Database error: ${serverErrorMessage}`
+        };
+      }
       return {
         success: false,
-        message: 'Email not registered. Please contact the Dementor to add your company account.'
+        message: 'Email not registered in database. Please check your spelling or contact the Dementor.'
       };
     }
 
@@ -766,6 +814,7 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
         isSupabaseLive: isSupabaseLive || isSupabaseConfigured(),
         supabaseEndpoint: getSupabaseUrl(),
         refreshData,
+        connectCustomSupabase,
         login,
         setPassword,
         logout,

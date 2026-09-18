@@ -19,7 +19,7 @@ import { useToast } from '@/components/ui/Toast';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, setPassword, isSupabaseLive, supabaseEndpoint } = useAnnouncementStore();
+  const { login, setPassword, isSupabaseLive, supabaseEndpoint, connectCustomSupabase } = useAnnouncementStore();
   const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
@@ -27,6 +27,23 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Local Supabase quick configuration for localhost testing
+  const [showConfigForm, setShowConfigForm] = useState(false);
+  const [customUrlInput, setCustomUrlInput] = useState('');
+  const [customKeyInput, setCustomKeyInput] = useState('');
+
+  const handleConnectLocalSupabase = () => {
+    if (!customUrlInput.trim() || !customKeyInput.trim()) {
+      showToast('Please enter both Supabase URL and Anon Key', 'error');
+      return;
+    }
+    const ok = connectCustomSupabase(customUrlInput.trim(), customKeyInput.trim());
+    if (ok) {
+      showToast('Connected to Supabase! Live database records loaded.', 'success');
+      setShowConfigForm(false);
+    }
+  };
 
   // First-time setup state
   const [isFirstTimeSetup, setIsFirstTimeSetup] = useState(false);
@@ -144,8 +161,61 @@ export default function LoginPage() {
 
         {/* Notice if Supabase not configured */}
         {!isSupabaseLive && (
-          <div style={{ padding: '10px 12px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fef3c7', color: '#b45309', fontSize: 12, marginBottom: 18, lineHeight: 1.5 }}>
-            <strong>Notice:</strong> Connecting to Supabase... Make sure <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> are set in your Vercel Environment Variables.
+          <div style={{ padding: '12px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fef3c7', color: '#92400e', fontSize: 12, marginBottom: 18, lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span>⚠️ Supabase is not connected to localhost:3000</span>
+              <button
+                type="button"
+                onClick={() => setShowConfigForm(!showConfigForm)}
+                style={{ background: 'none', border: 'none', color: '#4338ca', fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {showConfigForm ? 'Hide' : 'Connect credentials locally'}
+              </button>
+            </div>
+            <p style={{ margin: '0 0 6px 0' }}>
+              Since you added <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> to <strong>Vercel</strong>, your database is live on your deployed Vercel URL.
+            </p>
+            {showConfigForm && (
+              <div style={{ marginTop: 10, padding: 10, background: '#ffffff', borderRadius: 8, border: '1px solid #fde68a' }}>
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 3, color: '#475569' }}>Supabase URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://your-project.supabase.co"
+                    value={customUrlInput}
+                    onChange={(e) => setCustomUrlInput(e.target.value)}
+                    style={{ width: '100%', padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
+                  />
+                </div>
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 3, color: '#475569' }}>Supabase Anon Key</label>
+                  <input
+                    type="password"
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI..."
+                    value={customKeyInput}
+                    onChange={(e) => setCustomKeyInput(e.target.value)}
+                    style={{ width: '100%', padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConnectLocalSupabase}
+                  style={{
+                    width: '100%',
+                    padding: '7px',
+                    borderRadius: 6,
+                    background: '#4338ca',
+                    color: '#fff',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: 12,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Save & Connect Database
+                </button>
+              </div>
+            )}
           </div>
         )}
 
