@@ -59,6 +59,17 @@ interface AnnouncementStoreContextType {
 
 const AnnouncementStoreContext = createContext<AnnouncementStoreContextType | null>(null);
 
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 const STORAGE_KEYS = {
   USERS: 'pulseboard_users_v3',
   AUTH_USER: 'pulseboard_auth_user_v3', // localStorage (Remember Me)
@@ -177,63 +188,63 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
 
   const refreshData = async () => {
     try {
-      // 1. Fetch live users from server API route
-      const usersRes = await fetch('/api/app-users').then((r) => r.json()).catch(() => null);
-      if (usersRes && usersRes.success && Array.isArray(usersRes.users)) {
-        setIsSupabaseLive(true);
-        setAppUsers(usersRes.users);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(usersRes.users));
+      const supabase = getSupabaseClient();
+
+      // 1. Fetch live users: query Supabase directly if configured
+      if (supabase && isSupabaseConfigured()) {
+        const { data, error } = await supabase.from('app_users').select('*').order('created_at', { ascending: false });
+        if (!error && data && data.length > 0) {
+          setIsSupabaseLive(true);
+          setAppUsers(data);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(data));
+          }
         }
-      } else if (isSupabaseConfigured()) {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          const { data } = await supabase.from('app_users').select('*').order('created_at', { ascending: false });
-          if (data) {
-            setAppUsers(data);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(data));
-            }
+      } else {
+        const usersRes = await fetch('/api/app-users').then((r) => r.json()).catch(() => null);
+        if (usersRes && usersRes.success && Array.isArray(usersRes.users) && usersRes.users.length > 0) {
+          setIsSupabaseLive(true);
+          setAppUsers(usersRes.users);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(usersRes.users));
           }
         }
       }
 
-      // 2. Fetch live announcements from server API route
-      const annRes = await fetch('/api/announcements').then((r) => r.json()).catch(() => null);
-      if (annRes && annRes.success && Array.isArray(annRes.announcements)) {
-        setAnnouncements(annRes.announcements);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(annRes.announcements));
+      // 2. Fetch live announcements
+      if (supabase && isSupabaseConfigured()) {
+        const { data, error } = await supabase.from('announcements').select('*').order('scheduled_at', { ascending: false });
+        if (!error && data) {
+          setAnnouncements(data as any);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(data));
+          }
         }
-      } else if (isSupabaseConfigured()) {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          const { data } = await supabase.from('announcements').select('*').order('scheduled_at', { ascending: false });
-          if (data) {
-            setAnnouncements(data as any);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(data));
-            }
+      } else {
+        const annRes = await fetch('/api/announcements').then((r) => r.json()).catch(() => null);
+        if (annRes && annRes.success && Array.isArray(annRes.announcements)) {
+          setAnnouncements(annRes.announcements);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(annRes.announcements));
           }
         }
       }
 
-      // 3. Fetch live company events from server API route
-      const eventsRes = await fetch('/api/events').then((r) => r.json()).catch(() => null);
-      if (eventsRes && eventsRes.success && Array.isArray(eventsRes.events)) {
-        setEvents(eventsRes.events);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(eventsRes.events));
+      // 3. Fetch live company events
+      if (supabase && isSupabaseConfigured()) {
+        const { data, error } = await supabase.from('company_events').select('*').order('start_time', { ascending: true });
+        if (!error && data) {
+          setEvents(data as any);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(data));
+          }
         }
-      } else if (isSupabaseConfigured()) {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          const { data } = await supabase.from('company_events').select('*').order('start_time', { ascending: true });
-          if (data) {
-            setEvents(data as any);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(data));
-            }
+      } else {
+        const eventsRes = await fetch('/api/events').then((r) => r.json()).catch(() => null);
+        if (eventsRes && eventsRes.success && Array.isArray(eventsRes.events)) {
+          setEvents(eventsRes.events);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(eventsRes.events));
           }
         }
       }
@@ -464,7 +475,7 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   const addUser = async (userData: { email: string; nickname: string; department?: string; location?: string }): Promise<AppUser> => {
     const isDem = userData.nickname.toLowerCase().startsWith('dementor');
     const newUser: AppUser = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `user-${Date.now()}`,
+      id: generateUUID(),
       email: userData.email.trim(),
       nickname: userData.nickname.trim(),
       password: null, // Initialized as NULL per requirements
@@ -475,28 +486,84 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       created_at: new Date().toISOString()
     };
 
-    try {
-      await fetch('/api/app-users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser)
-      });
-    } catch (e) {
-      if (isSupabaseConfigured()) {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          await supabase.from('app_users').insert([newUser]);
+    let saved = false;
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { error } = await supabase.from('app_users').insert([{
+          id: newUser.id,
+          email: newUser.email,
+          nickname: newUser.nickname,
+          password: newUser.password,
+          role: newUser.role,
+          department: newUser.department,
+          location: newUser.location,
+          avatar_url: newUser.avatar_url,
+          created_at: newUser.created_at
+        }]);
+        if (error) {
+          console.error('Supabase addUser error:', error);
+          throw new Error(`Database error: ${error.message}`);
         }
+        saved = true;
       }
     }
 
-    const updated = [newUser, ...appUsers.filter((u) => u.email !== newUser.email)];
+    if (!saved) {
+      try {
+        const res = await fetch('/api/app-users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newUser)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok && json.error && !json.error.includes('not configured')) {
+          throw new Error(`Database error: ${json.error}`);
+        }
+      } catch (err: any) {
+        if (err.message?.startsWith('Database error:')) throw err;
+      }
+    }
+
+    const updated = [newUser, ...appUsers.filter((u) => u.email.toLowerCase() !== newUser.email.toLowerCase())];
     saveUsers(updated);
     return newUser;
   };
 
   // Dementor: Edit user
   const updateUser = async (id: string, userData: Partial<AppUser>) => {
+    let saved = false;
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { id: _id, ...fieldsToUpdate } = userData;
+        const { error } = await supabase.from('app_users').update(fieldsToUpdate).eq('id', id);
+        if (error) {
+          console.error('Supabase updateUser error:', error);
+          throw new Error(`Database error: ${error.message}`);
+        }
+        saved = true;
+      }
+    }
+
+    if (!saved) {
+      try {
+        const res = await fetch('/api/app-users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, ...userData })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok && json.error && !json.error.includes('not configured')) {
+          throw new Error(`Database error: ${json.error}`);
+        }
+      } catch (err: any) {
+        if (err.message?.startsWith('Database error:')) throw err;
+      }
+    }
+
     const updated = appUsers.map((u) => {
       if (u.id === id) {
         const isDem = (userData.nickname || u.nickname).toLowerCase().startsWith('dementor');
@@ -511,43 +578,42 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     });
     saveUsers(updated);
 
-    // If updating current user
     if (currentUser && currentUser.id === id) {
       const refreshed = updated.find((u) => u.id === id);
       if (refreshed) setCurrentUser(refreshed);
-    }
-
-    try {
-      await fetch('/api/app-users', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, ...userData })
-      });
-    } catch (e) {
-      if (isSupabaseConfigured()) {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          await supabase.from('app_users').update(userData).eq('id', id);
-        }
-      }
     }
   };
 
   // Dementor: Delete user
   const deleteUser = async (id: string) => {
-    const updated = appUsers.filter((u) => u.id !== id);
-    saveUsers(updated);
+    let deleted = false;
 
-    try {
-      await fetch(`/api/app-users?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    } catch (e) {
-      if (isSupabaseConfigured()) {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          await supabase.from('app_users').delete().eq('id', id);
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { error } = await supabase.from('app_users').delete().eq('id', id);
+        if (error) {
+          console.error('Supabase deleteUser error:', error);
+          throw new Error(`Database error: ${error.message}`);
         }
+        deleted = true;
       }
     }
+
+    if (!deleted) {
+      try {
+        const res = await fetch(`/api/app-users?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok && json.error && !json.error.includes('not configured')) {
+          throw new Error(`Database error: ${json.error}`);
+        }
+      } catch (err: any) {
+        if (err.message?.startsWith('Database error:')) throw err;
+      }
+    }
+
+    const updated = appUsers.filter((u) => u.id !== id);
+    saveUsers(updated);
   };
 
   // Announcement compliance sign-off
@@ -567,6 +633,19 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEYS.ACKS, JSON.stringify(updatedAcks));
       }
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          supabase.from('acknowledgements').insert([{
+            announcement_id: announcementId,
+            user_id: currentUser.id,
+            acknowledged_at: now
+          }]).then(({ error }) => {
+            if (error) console.warn('Supabase acknowledge error:', error);
+          });
+        }
+      }
     }
 
     const updated = announcements.map((a) => {
@@ -585,11 +664,12 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   };
 
   const toggleReaction = (announcementId: string, emoji: string) => {
+    let hasReacted = false;
     const updated = announcements.map((a) => {
       if (a.id === announcementId) {
         const userReactions = [...(a.user_reactions || [])];
         const summary = { ...(a.reactions_summary || {}) };
-        const hasReacted = userReactions.includes(emoji);
+        hasReacted = userReactions.includes(emoji);
 
         if (hasReacted) {
           const nextReactions = userReactions.filter((e) => e !== emoji);
@@ -605,13 +685,36 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       return a;
     });
     saveAnnouncements(updated);
+
+    if (isSupabaseConfigured() && currentUser) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        if (hasReacted) {
+          supabase.from('reactions').delete().match({
+            announcement_id: announcementId,
+            user_id: currentUser.id,
+            emoji
+          }).then(({ error }) => {
+            if (error) console.warn('Supabase reaction delete error:', error);
+          });
+        } else {
+          supabase.from('reactions').insert([{
+            announcement_id: announcementId,
+            user_id: currentUser.id,
+            emoji
+          }]).then(({ error }) => {
+            if (error) console.warn('Supabase reaction insert error:', error);
+          });
+        }
+      }
+    }
   };
 
   const addComment = (announcementId: string, content: string) => {
     if (!currentUser) return;
 
     const newComment: Comment = {
-      id: `cmt-${Date.now()}`,
+      id: generateUUID(),
       announcement_id: announcementId,
       user_id: currentUser.id,
       content,
@@ -646,6 +749,20 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       return a;
     });
     saveAnnouncements(updated);
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase.from('comments').insert([{
+          id: newComment.id,
+          announcement_id: announcementId,
+          user_id: currentUser.id,
+          content
+        }]).then(({ error }) => {
+          if (error) console.warn('Supabase comment insert error:', error);
+        });
+      }
+    }
   };
 
   const toggleBookmark = (announcementId: string) => {
@@ -659,21 +776,32 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   };
 
   const togglePin = (announcementId: string) => {
+    let nextPinned = false;
     const updated = announcements.map((a) => {
       if (a.id === announcementId) {
-        return { ...a, is_pinned: !a.is_pinned };
+        nextPinned = !a.is_pinned;
+        return { ...a, is_pinned: nextPinned };
       }
       return a;
     });
     saveAnnouncements(updated);
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase.from('announcements').update({ is_pinned: nextPinned }).eq('id', announcementId).then(({ error }) => {
+          if (error) console.warn('Supabase pin update error:', error);
+        });
+      }
+    }
   };
 
   const createAnnouncement = (data: Partial<Announcement>): Announcement => {
-    const id = `ann-${Date.now()}`;
-    const slug = (data.title || 'announcement')
+    const id = generateUUID();
+    const slug = `${(data.title || 'announcement')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)+/g, '');
+      .replace(/(^-|-$)+/g, '')}-${Date.now().toString().slice(-4)}`;
 
     const authorProfile: Profile = currentUser
       ? {
@@ -721,14 +849,39 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     const updated = [newPost, ...announcements];
     saveAnnouncements(updated);
 
-    try {
+    const dbRecord = {
+      id: newPost.id,
+      title: newPost.title,
+      slug: newPost.slug,
+      summary: newPost.summary,
+      content: newPost.content,
+      category: newPost.category,
+      priority: newPost.priority,
+      status: newPost.status,
+      is_pinned: newPost.is_pinned,
+      requires_acknowledgement: newPost.requires_acknowledgement,
+      allow_comments: newPost.allow_comments,
+      target_type: newPost.target_type,
+      target_value: newPost.target_value,
+      scheduled_at: newPost.scheduled_at,
+      expires_at: newPost.expires_at,
+      attachments: newPost.attachments,
+      author_id: currentUser?.id || null
+    };
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase.from('announcements').insert([dbRecord]).then(({ error }) => {
+          if (error) console.error('Supabase direct createAnnouncement error:', error);
+        });
+      }
+    } else {
       fetch('/api/announcements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPost)
+        body: JSON.stringify(dbRecord)
       }).catch((e) => console.warn('API createAnnouncement error:', e));
-    } catch (e) {
-      // Ignore
     }
 
     return newPost;
@@ -746,11 +899,46 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       return a;
     });
     saveAnnouncements(updated);
+
+    const dbUpdate: any = {};
+    if (data.title !== undefined) dbUpdate.title = data.title;
+    if (data.summary !== undefined) dbUpdate.summary = data.summary;
+    if (data.content !== undefined) dbUpdate.content = data.content;
+    if (data.category !== undefined) dbUpdate.category = data.category;
+    if (data.priority !== undefined) dbUpdate.priority = data.priority;
+    if (data.status !== undefined) dbUpdate.status = data.status;
+    if (data.is_pinned !== undefined) dbUpdate.is_pinned = data.is_pinned;
+    if (data.requires_acknowledgement !== undefined) dbUpdate.requires_acknowledgement = data.requires_acknowledgement;
+    if (data.allow_comments !== undefined) dbUpdate.allow_comments = data.allow_comments;
+    if (data.target_type !== undefined) dbUpdate.target_type = data.target_type;
+    if (data.target_value !== undefined) dbUpdate.target_value = data.target_value;
+    if (data.scheduled_at !== undefined) dbUpdate.scheduled_at = data.scheduled_at;
+    if (data.expires_at !== undefined) dbUpdate.expires_at = data.expires_at;
+    if (data.attachments !== undefined) dbUpdate.attachments = data.attachments;
+    dbUpdate.updated_at = new Date().toISOString();
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase.from('announcements').update(dbUpdate).eq('id', id).then(({ error }) => {
+          if (error) console.error('Supabase direct updateAnnouncement error:', error);
+        });
+      }
+    }
   };
 
   const deleteAnnouncement = (id: string) => {
     const updated = announcements.filter((a) => a.id !== id);
     saveAnnouncements(updated);
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase.from('announcements').delete().eq('id', id).then(({ error }) => {
+          if (error) console.error('Supabase direct deleteAnnouncement error:', error);
+        });
+      }
+    }
   };
 
   const getAuditLogs = (announcementId: string) => {
@@ -782,7 +970,7 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
 
   const addEvent = (eventData: Partial<CompanyEvent>): CompanyEvent => {
     const newEvent: CompanyEvent = {
-      id: `evt-${Date.now()}`,
+      id: generateUUID(),
       title: eventData.title || 'Untitled Event',
       description: eventData.description || '',
       start_time: eventData.start_time || new Date().toISOString(),
@@ -800,14 +988,30 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(nextEvents));
     }
 
-    try {
+    const dbEvent = {
+      id: newEvent.id,
+      title: newEvent.title,
+      description: newEvent.description,
+      start_time: newEvent.start_time,
+      end_time: newEvent.end_time,
+      location: newEvent.location,
+      category: newEvent.category,
+      is_all_day: newEvent.is_all_day
+    };
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase.from('company_events').insert([dbEvent]).then(({ error }) => {
+          if (error) console.error('Supabase direct addEvent error:', error);
+        });
+      }
+    } else {
       fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newEvent)
+        body: JSON.stringify(dbEvent)
       }).catch((e) => console.warn('API addEvent error:', e));
-    } catch (e) {
-      // Ignore
     }
 
     return newEvent;

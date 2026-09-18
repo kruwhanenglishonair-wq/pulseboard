@@ -66,6 +66,16 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
 CREATE INDEX IF NOT EXISTS idx_profiles_dept ON public.profiles(department);
 
+-- Safe migration: drop older foreign keys if tables already exist
+DO $$ BEGIN
+    ALTER TABLE IF EXISTS public.announcements DROP CONSTRAINT IF EXISTS announcements_author_id_fkey;
+    ALTER TABLE IF EXISTS public.acknowledgements DROP CONSTRAINT IF EXISTS acknowledgements_user_id_fkey;
+    ALTER TABLE IF EXISTS public.reactions DROP CONSTRAINT IF EXISTS reactions_user_id_fkey;
+    ALTER TABLE IF EXISTS public.comments DROP CONSTRAINT IF EXISTS comments_user_id_fkey;
+    ALTER TABLE IF EXISTS public.bookmarks DROP CONSTRAINT IF EXISTS bookmarks_user_id_fkey;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 -- 5. Announcements Table
 CREATE TABLE IF NOT EXISTS public.announcements (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,7 +94,7 @@ CREATE TABLE IF NOT EXISTS public.announcements (
     scheduled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ,
     attachments JSONB NOT NULL DEFAULT '[]'::jsonb, -- Array of { name, url, size, type }
-    author_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    author_id UUID REFERENCES public.app_users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -99,7 +109,7 @@ CREATE INDEX IF NOT EXISTS idx_announcements_scheduled ON public.announcements(s
 CREATE TABLE IF NOT EXISTS public.acknowledgements (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     announcement_id UUID NOT NULL REFERENCES public.announcements(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
     acknowledged_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     user_agent TEXT,
     ip_address TEXT,
@@ -113,7 +123,7 @@ CREATE INDEX IF NOT EXISTS idx_ack_user ON public.acknowledgements(user_id);
 CREATE TABLE IF NOT EXISTS public.reactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     announcement_id UUID NOT NULL REFERENCES public.announcements(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
     emoji TEXT NOT NULL, -- e.g. '👍', '❤️', '👏', '🎉', '💡'
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT unique_user_announcement_emoji UNIQUE (announcement_id, user_id, emoji)
@@ -125,7 +135,7 @@ CREATE INDEX IF NOT EXISTS idx_reactions_announcement ON public.reactions(announ
 CREATE TABLE IF NOT EXISTS public.comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     announcement_id UUID NOT NULL REFERENCES public.announcements(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -137,7 +147,7 @@ CREATE INDEX IF NOT EXISTS idx_comments_announcement ON public.comments(announce
 CREATE TABLE IF NOT EXISTS public.bookmarks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     announcement_id UUID NOT NULL REFERENCES public.announcements(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT unique_user_bookmark UNIQUE (announcement_id, user_id)
 );

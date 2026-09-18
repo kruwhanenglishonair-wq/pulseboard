@@ -100,17 +100,21 @@ export default function UsersManagementPage() {
       return;
     }
 
-    await addUser({
-      email: newEmail.trim(),
-      nickname: newNickname.trim(),
-      department: newDept,
-      location: newLoc
-    });
+    try {
+      await addUser({
+        email: newEmail.trim(),
+        nickname: newNickname.trim(),
+        department: newDept,
+        location: newLoc
+      });
 
-    setShowAddModal(false);
-    setNewEmail('');
-    setNewNickname('');
-    showToast(`Added ${newNickname} (Password initialized to NULL)!`, 'success');
+      setShowAddModal(false);
+      setNewEmail('');
+      setNewNickname('');
+      showToast(`Added ${newNickname} (Password initialized to NULL)!`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to add user to database', 'error');
+    }
   };
 
   const openEditModal = (user: AppUser) => {
@@ -125,21 +129,29 @@ export default function UsersManagementPage() {
     e.preventDefault();
     if (!editingUser) return;
 
-    await updateUser(editingUser.id, {
-      nickname: editNickname.trim(),
-      department: editDept,
-      location: editLoc,
-      password: editPassword.trim() || null
-    });
+    try {
+      await updateUser(editingUser.id, {
+        nickname: editNickname.trim(),
+        department: editDept,
+        location: editLoc,
+        password: editPassword.trim() || null
+      });
 
-    setEditingUser(null);
-    showToast(`Updated profile for ${editNickname}!`, 'success');
+      setEditingUser(null);
+      showToast(`Updated profile for ${editNickname}!`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update user in database', 'error');
+    }
   };
 
   const handleDelete = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to remove user "${name}" from the company directory?`)) {
-      await deleteUser(id);
-      showToast(`Removed ${name}.`, 'info');
+      try {
+        await deleteUser(id);
+        showToast(`Removed ${name}.`, 'info');
+      } catch (err: any) {
+        showToast(err.message || 'Failed to delete user from database', 'error');
+      }
     }
   };
 
