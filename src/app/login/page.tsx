@@ -79,12 +79,6 @@ export default function LoginPage() {
     router.push('/');
   };
 
-  const fillDemo = (demoEmail: string, demoPass?: string) => {
-    setEmail(demoEmail);
-    setPasswordInput(demoPass || '');
-    setIsFirstTimeSetup(false);
-  };
-
   return (
     <div
       style={{
@@ -315,81 +309,14 @@ export default function LoginPage() {
           </form>
         )}
 
-        {/* Demo Fast-Login Helpers */}
-        <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #f1f5f9' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.04em', marginBottom: 10, textAlign: 'center' }}>
-            Quick Demo Shortcuts (Click to Auto-Fill)
+        {/* Enterprise Security Footer */}
+        <div style={{ marginTop: 28, paddingTop: 18, borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#94a3b8', fontSize: 12 }}>
+            <Building2 size={14} />
+            <span>Authorized company personnel only</span>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button
-              type="button"
-              onClick={() => fillDemo('dementor@company.com', 'dementor123')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: 8,
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                fontSize: 12,
-                cursor: 'pointer',
-                textAlign: 'left'
-              }}
-            >
-              <div>
-                <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>👑 Dementor Admin</span>
-                <span style={{ color: '#64748b', marginLeft: 6 }}>dementor@company.com</span>
-              </div>
-              <span style={{ fontSize: 11, color: '#94a3b8' }}>dementor123</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fillDemo('sarah.jenkins@company.com', '')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: 8,
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                fontSize: 12,
-                cursor: 'pointer',
-                textAlign: 'left'
-              }}
-            >
-              <div>
-                <span style={{ fontWeight: 700, color: '#059669' }}>🆕 Sarah (First-time)</span>
-                <span style={{ color: '#64748b', marginLeft: 6 }}>sarah.jenkins@company.com</span>
-              </div>
-              <span style={{ fontSize: 11, color: '#d97706', fontWeight: 600 }}>Password: NULL</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fillDemo('alex.rivera@company.com', 'password123')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: 8,
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                fontSize: 12,
-                cursor: 'pointer',
-                textAlign: 'left'
-              }}
-            >
-              <div>
-                <span style={{ fontWeight: 700, color: '#2563eb' }}>👤 Alex (Existing)</span>
-                <span style={{ color: '#64748b', marginLeft: 6 }}>alex.rivera@company.com</span>
-              </div>
-              <span style={{ fontSize: 11, color: '#94a3b8' }}>password123</span>
-            </button>
+          <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 4 }}>
+            Contact your Dementor Admin for onboarding or password retrieval
           </div>
         </div>
       </div>

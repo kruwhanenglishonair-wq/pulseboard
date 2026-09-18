@@ -49,7 +49,7 @@ export default function HomeFeedPage() {
         const q = searchQuery.toLowerCase();
         const matchesTitle = a.title.toLowerCase().includes(q);
         const matchesSummary = a.summary.toLowerCase().includes(q);
-        const matchesAuthor = a.author?.full_name.toLowerCase().includes(q);
+        const matchesAuthor = a.author?.full_name ? a.author.full_name.toLowerCase().includes(q) : false;
         const matchesTarget = a.target_value?.toLowerCase().includes(q);
         return matchesTitle || matchesSummary || matchesAuthor || matchesTarget;
       }
