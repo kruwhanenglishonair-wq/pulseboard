@@ -145,7 +145,7 @@ export default function LoginPage() {
         {/* Notice if Supabase not configured */}
         {!isSupabaseLive && (
           <div style={{ padding: '10px 12px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fef3c7', color: '#b45309', fontSize: 12, marginBottom: 18, lineHeight: 1.5 }}>
-            <strong>Notice:</strong> Supabase environment variables are missing in <code>.env.local</code>. Paste your Supabase URL & Anon Key to view live database rows.
+            <strong>Notice:</strong> Connecting to Supabase... Make sure <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> are set in your Vercel Environment Variables.
           </div>
         )}
 

@@ -10,7 +10,7 @@ import {
   AppUser
 } from '../types';
 import { MOCK_ANNOUNCEMENTS, MOCK_EVENTS, MOCK_COMMENTS, MOCK_APP_USERS } from '../mockData';
-import { getSupabaseClient, isSupabaseConfigured, getSupabaseUrl } from '../supabase';
+import { getSupabaseClient, isSupabaseConfigured, getSupabaseUrl, setSupabaseConfig } from '../supabase';
 
 interface AnnouncementStoreContextType {
   currentUser: AppUser | null;
@@ -76,6 +76,7 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [acknowledgements, setAcknowledgements] = useState<Record<string, Array<{ userId: string; timestamp: string }>>>({});
   const [isOffline, setIsOffline] = useState(false);
+  const [isSupabaseLive, setIsSupabaseLive] = useState(false);
 
   // Check if current user is a "Dementor"
   const isDementor = Boolean(
@@ -137,32 +138,20 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       const storedAcks = localStorage.getItem(STORAGE_KEYS.ACKS);
       if (storedAcks) setAcknowledgements(JSON.parse(storedAcks));
 
-      // 4. Live sync with Supabase if configured
-      if (isSupabaseConfigured()) {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          supabase.from('app_users').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
-            if (data) {
-              setAppUsers(data);
-              localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(data));
-            }
-          });
-
-          supabase.from('announcements').select('*').order('scheduled_at', { ascending: false }).then(({ data }) => {
-            if (data) {
-              setAnnouncements(data as any);
-              localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(data));
-            }
-          });
-
-          supabase.from('company_events').select('*').order('start_time', { ascending: true }).then(({ data }) => {
-            if (data) {
-              setEvents(data as any);
-              localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(data));
-            }
-          });
-        }
-      }
+      // 4. Fetch server configuration (reads Vercel SUPABASE_URL / SUPABASE_ANON_KEY)
+      fetch('/api/config/supabase')
+        .then((res) => res.json())
+        .then((cfg) => {
+          if (cfg && cfg.configured && cfg.url && cfg.anonKey) {
+            setSupabaseConfig(cfg.url, cfg.anonKey);
+            setIsSupabaseLive(true);
+          }
+          // Now fetch live data from server routes
+          refreshData();
+        })
+        .catch(() => {
+          refreshData();
+        });
     } catch (e) {
       console.warn('Error reading from localStorage', e);
     }
@@ -174,39 +163,69 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   }, []);
 
   const refreshData = async () => {
-    if (!isSupabaseConfigured()) return;
-    const supabase = getSupabaseClient();
-    if (!supabase) return;
-
     try {
-      const [usersRes, annRes, eventsRes] = await Promise.all([
-        supabase.from('app_users').select('*').order('created_at', { ascending: false }),
-        supabase.from('announcements').select('*').order('scheduled_at', { ascending: false }),
-        supabase.from('company_events').select('*').order('start_time', { ascending: true })
-      ]);
-
-      if (usersRes.data) {
-        setAppUsers(usersRes.data);
+      // 1. Fetch live users from server API route
+      const usersRes = await fetch('/api/app-users').then((r) => r.json()).catch(() => null);
+      if (usersRes && usersRes.success && Array.isArray(usersRes.users)) {
+        setIsSupabaseLive(true);
+        setAppUsers(usersRes.users);
         if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(usersRes.data));
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(usersRes.users));
+        }
+      } else if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          const { data } = await supabase.from('app_users').select('*').order('created_at', { ascending: false });
+          if (data) {
+            setAppUsers(data);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(data));
+            }
+          }
         }
       }
 
-      if (annRes.data) {
-        setAnnouncements(annRes.data as any);
+      // 2. Fetch live announcements from server API route
+      const annRes = await fetch('/api/announcements').then((r) => r.json()).catch(() => null);
+      if (annRes && annRes.success && Array.isArray(annRes.announcements)) {
+        setAnnouncements(annRes.announcements);
         if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(annRes.data));
+          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(annRes.announcements));
+        }
+      } else if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          const { data } = await supabase.from('announcements').select('*').order('scheduled_at', { ascending: false });
+          if (data) {
+            setAnnouncements(data as any);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(data));
+            }
+          }
         }
       }
 
-      if (eventsRes.data) {
-        setEvents(eventsRes.data as any);
+      // 3. Fetch live company events from server API route
+      const eventsRes = await fetch('/api/events').then((r) => r.json()).catch(() => null);
+      if (eventsRes && eventsRes.success && Array.isArray(eventsRes.events)) {
+        setEvents(eventsRes.events);
         if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(eventsRes.data));
+          localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(eventsRes.events));
+        }
+      } else if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          const { data } = await supabase.from('company_events').select('*').order('start_time', { ascending: true });
+          if (data) {
+            setEvents(data as any);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(data));
+            }
+          }
         }
       }
     } catch (err) {
-      console.warn('Error refreshing from Supabase:', err);
+      console.warn('Error refreshing live data:', err);
     }
   };
 
@@ -224,17 +243,36 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     }
   };
 
-  // Auth: Login function (Live query to Supabase)
+  // Auth: Login function (Live query to Supabase via server API and client fallback)
   const login = async (email: string, password?: string, rememberMe: boolean = true) => {
     const cleanEmail = email.trim().toLowerCase();
 
     let user: AppUser | undefined = undefined;
 
-    if (isSupabaseConfigured()) {
+    // 1. Query live server endpoint (which reads SUPABASE_URL and SUPABASE_ANON_KEY on Vercel server)
+    try {
+      const res = await fetch(`/api/app-users?email=${encodeURIComponent(cleanEmail)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.user) {
+          user = json.user;
+          setAppUsers((prev) => {
+            const exists = prev.some((u) => u.id === json.user.id);
+            if (exists) return prev.map((u) => (u.id === json.user.id ? json.user : u));
+            return [json.user, ...prev];
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Server query error on login:', e);
+    }
+
+    // 2. Fallback to client Supabase instance if available
+    if (!user && isSupabaseConfigured()) {
       const supabase = getSupabaseClient();
       if (supabase) {
         try {
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from('app_users')
             .select('*')
             .eq('email', cleanEmail)
@@ -302,13 +340,17 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   const setPassword = async (email: string, newPassword: string, rememberMe: boolean = true) => {
     const cleanEmail = email.trim().toLowerCase();
 
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        try {
+    try {
+      await fetch('/api/app-users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password: newPassword })
+      });
+    } catch (e) {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
           await supabase.from('app_users').update({ password: newPassword }).eq('email', cleanEmail);
-        } catch (e) {
-          console.warn('Supabase setPassword error:', e);
         }
       }
     }
@@ -373,20 +415,18 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       created_at: new Date().toISOString()
     };
 
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const { error } = await supabase.from('app_users').insert([{
-          id: newUser.id,
-          email: newUser.email,
-          nickname: newUser.nickname,
-          password: newUser.password,
-          role: newUser.role,
-          department: newUser.department,
-          location: newUser.location,
-          avatar_url: newUser.avatar_url
-        }]);
-        if (error) console.error('Supabase addUser error:', error);
+    try {
+      await fetch('/api/app-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+      });
+    } catch (e) {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          await supabase.from('app_users').insert([newUser]);
+        }
       }
     }
 
@@ -417,11 +457,18 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       if (refreshed) setCurrentUser(refreshed);
     }
 
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const { error } = await supabase.from('app_users').update(userData).eq('id', id);
-        if (error) console.error('Supabase updateUser error:', error);
+    try {
+      await fetch('/api/app-users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...userData })
+      });
+    } catch (e) {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          await supabase.from('app_users').update(userData).eq('id', id);
+        }
       }
     }
   };
@@ -431,11 +478,14 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     const updated = appUsers.filter((u) => u.id !== id);
     saveUsers(updated);
 
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const { error } = await supabase.from('app_users').delete().eq('id', id);
-        if (error) console.error('Supabase deleteUser error:', error);
+    try {
+      await fetch(`/api/app-users?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    } catch (e) {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          await supabase.from('app_users').delete().eq('id', id);
+        }
       }
     }
   };
@@ -610,6 +660,17 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
 
     const updated = [newPost, ...announcements];
     saveAnnouncements(updated);
+
+    try {
+      fetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPost)
+      }).catch((e) => console.warn('API createAnnouncement error:', e));
+    } catch (e) {
+      // Ignore
+    }
+
     return newPost;
   };
 
@@ -678,6 +739,17 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(nextEvents));
     }
+
+    try {
+      fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEvent)
+      }).catch((e) => console.warn('API addEvent error:', e));
+    } catch (e) {
+      // Ignore
+    }
+
     return newEvent;
   };
 
@@ -691,7 +763,7 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
         events,
         comments,
         isOffline,
-        isSupabaseLive: isSupabaseConfigured(),
+        isSupabaseLive: isSupabaseLive || isSupabaseConfigured(),
         supabaseEndpoint: getSupabaseUrl(),
         refreshData,
         login,
