@@ -20,9 +20,9 @@ export const UrgentAlertBanner: React.FC<UrgentAlertBannerProps> = ({ urgentAnno
         marginBottom: 24,
         padding: '16px 20px',
         borderRadius: 'var(--radius-lg)',
-        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)',
-        border: '1px solid rgba(239, 68, 68, 0.4)',
-        boxShadow: '0 8px 30px rgba(239, 68, 68, 0.15)',
+        background: '#fef2f2',
+        border: '1px solid #fecaca',
+        boxShadow: '0 4px 14px rgba(220, 38, 38, 0.08)',
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
@@ -35,13 +35,13 @@ export const UrgentAlertBanner: React.FC<UrgentAlertBannerProps> = ({ urgentAnno
           <span className="badge badge-urgent" style={{ fontSize: 11 }}>
             Mandatory Action Required
           </span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          <span style={{ fontSize: 12, color: '#991b1b', fontWeight: 600 }}>
             SOC2 Audit Deadline
           </span>
         </div>
 
         {urgentAnnouncements.length > 1 && (
-          <span style={{ fontSize: 12, color: '#f87171', fontWeight: 600 }}>
+          <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 700 }}>
             +{urgentAnnouncements.length - 1} more alert
           </span>
         )}
@@ -49,10 +49,10 @@ export const UrgentAlertBanner: React.FC<UrgentAlertBannerProps> = ({ urgentAnno
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 260 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 800, color: '#991b1b', marginBottom: 4 }}>
             {topUrgent.title}
           </h3>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          <p style={{ fontSize: 13, color: '#7f1d1d', lineHeight: 1.5 }}>
             {topUrgent.summary}
           </p>
         </div>

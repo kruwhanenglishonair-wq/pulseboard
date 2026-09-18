@@ -79,7 +79,7 @@ export default function CategoryHubsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Page Title */}
       <div>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 6 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: 6 }}>
           Department & Category Hubs
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>

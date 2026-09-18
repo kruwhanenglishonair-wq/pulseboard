@@ -213,9 +213,9 @@ export const AuditLogModal: React.FC<AuditLogModalProps> = ({ announcement, onCl
                   padding: '4px 8px 4px 30px',
                   fontSize: 12,
                   borderRadius: 6,
-                  background: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  color: '#fff',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  color: '#0f172a',
                   outline: 'none'
                 }}
               />

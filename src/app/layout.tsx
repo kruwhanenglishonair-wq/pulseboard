@@ -2,18 +2,16 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AnnouncementStoreProvider } from '@/lib/store/announcementStore';
 import { ToastProvider } from '@/components/ui/Toast';
-import { Header } from '@/components/layout/Header';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { BottomNav } from '@/components/layout/BottomNav';
+import { AppShell } from '@/components/layout/AppShell';
 import { PwaPrompt } from '@/components/ui/PwaPrompt';
 
 export const metadata: Metadata = {
   title: 'PulseBoard | Company Announcements & Compliance Hub',
-  description: 'Streamlined internal communications, mandatory policy sign-offs, and company event calendar.',
+  description: 'Internal communications, mandatory policy sign-offs, and company event calendar.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'PulseBoard'
   },
   icons: {
@@ -29,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#080c14',
+  themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -42,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme="dark">
+    <html lang="en">
       <head>
         <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
@@ -50,14 +48,7 @@ export default function RootLayout({
       <body>
         <AnnouncementStoreProvider>
           <ToastProvider>
-            <div className="app-container">
-              <Sidebar />
-              <div className="main-content">
-                <Header />
-                <main className="page-wrapper">{children}</main>
-                <BottomNav />
-              </div>
-            </div>
+            <AppShell>{children}</AppShell>
             <PwaPrompt />
           </ToastProvider>
         </AnnouncementStoreProvider>

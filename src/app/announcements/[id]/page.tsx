@@ -71,7 +71,7 @@ export default function AnnouncementDetailPage({ params }: { params: Promise<{ i
             style={{
               fontSize: 20,
               fontWeight: 700,
-              color: '#fff',
+              color: '#0f172a',
               marginTop: 24,
               marginBottom: 12,
               borderBottom: '1px solid var(--border-subtle)',
@@ -254,7 +254,7 @@ export default function AnnouncementDetailPage({ params }: { params: Promise<{ i
           style={{
             fontSize: 26,
             fontWeight: 800,
-            color: '#fff',
+            color: '#0f172a',
             lineHeight: 1.3,
             letterSpacing: '-0.02em',
             marginBottom: 16

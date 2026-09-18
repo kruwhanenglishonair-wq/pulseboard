@@ -125,9 +125,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
               fontSize: 16,
               fontWeight: 600,
               borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
-              color: '#fff',
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              color: '#0f172a',
               outline: 'none'
             }}
           />
@@ -148,9 +148,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
               padding: '10px 14px',
               fontSize: 14,
               borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
-              color: '#fff',
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              color: '#0f172a',
               outline: 'none',
               resize: 'vertical'
             }}
@@ -222,9 +222,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
             fontSize: 14,
             fontFamily: 'var(--font-mono)',
             borderRadius: 'var(--radius-md)',
-            background: 'var(--bg-surface-elevated)',
-            border: '1px solid var(--border-subtle)',
-            color: '#fff',
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            color: '#0f172a',
             outline: 'none',
             lineHeight: 1.6,
             resize: 'vertical'
@@ -251,9 +251,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: 8,
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-subtle)',
-                color: '#fff'
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#0f172a'
               }}
             >
               <option value="GENERAL">General Updates</option>
@@ -275,9 +275,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: 8,
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-subtle)',
-                color: '#fff'
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#0f172a'
               }}
             >
               <option value="GENERAL">🟢 General (News, perks, culture)</option>
@@ -304,9 +304,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: 8,
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-subtle)',
-                color: '#fff'
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#0f172a'
               }}
             >
               <option value="ALL">Company-Wide (All Employees)</option>
@@ -327,9 +327,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
                   width: '100%',
                   padding: '8px 12px',
                   borderRadius: 8,
-                  background: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  color: '#fff'
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  color: '#0f172a'
                 }}
               >
                 <option value="Engineering">Platform Engineering</option>
@@ -353,9 +353,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
                   width: '100%',
                   padding: '8px 12px',
                   borderRadius: 8,
-                  background: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  color: '#fff'
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  color: '#0f172a'
                 }}
               >
                 <option value="Bangkok HQ">Bangkok HQ</option>
@@ -385,9 +385,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: 8,
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-subtle)',
-                color: '#fff'
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#0f172a'
               }}
             />
           </div>
@@ -404,9 +404,9 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: 8,
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-subtle)',
-                color: '#fff'
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#0f172a'
               }}
             />
           </div>

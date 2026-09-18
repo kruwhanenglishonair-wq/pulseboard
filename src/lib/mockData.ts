@@ -1,4 +1,73 @@
-import { Profile, Announcement, CompanyEvent, Comment } from './types';
+import { Profile, Announcement, CompanyEvent, Comment, AppUser } from './types';
+
+export const MOCK_APP_USERS: AppUser[] = [
+  {
+    id: 'user-dementor',
+    email: 'dementor@company.com',
+    nickname: 'Dementor Admin',
+    password: 'dementor123',
+    role: 'dementor',
+    department: 'Executive Management',
+    location: 'Bangkok HQ',
+    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&fit=crop&crop=faces',
+    created_at: '2026-01-01T08:00:00Z'
+  },
+  {
+    id: 'user-001',
+    email: 'sarah.jenkins@company.com',
+    nickname: 'Sarah',
+    password: null, // First-time user: will be forced to set password on first login
+    role: 'employee',
+    department: 'People & HR',
+    location: 'Bangkok HQ',
+    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&fit=crop&crop=faces',
+    created_at: '2026-01-10T08:00:00Z'
+  },
+  {
+    id: 'user-002',
+    email: 'alex.rivera@company.com',
+    nickname: 'Alex',
+    password: 'password123',
+    role: 'employee',
+    department: 'IT & Security Operations',
+    location: 'Bangkok HQ',
+    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&fit=crop&crop=faces',
+    created_at: '2026-01-15T09:00:00Z'
+  },
+  {
+    id: 'user-003',
+    email: 'marcus.chen@company.com',
+    nickname: 'Marcus',
+    password: null, // First-time user
+    role: 'employee',
+    department: 'Platform Engineering',
+    location: 'Singapore',
+    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&fit=crop&crop=faces',
+    created_at: '2026-02-01T10:00:00Z'
+  },
+  {
+    id: 'user-004',
+    email: 'elena.rostova@company.com',
+    nickname: 'Elena',
+    password: 'elena2026',
+    role: 'employee',
+    department: 'Product Design',
+    location: 'Tokyo',
+    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&fit=crop&crop=faces',
+    created_at: '2026-02-10T11:00:00Z'
+  },
+  {
+    id: 'user-005',
+    email: 'david.kim@company.com',
+    nickname: 'David',
+    password: null, // First-time user
+    role: 'employee',
+    department: 'Sales & Growth',
+    location: 'Remote',
+    avatar_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=160&fit=crop&crop=faces',
+    created_at: '2026-03-01T08:30:00Z'
+  }
+];
 
 export const MOCK_PROFILES: Profile[] = [
   {

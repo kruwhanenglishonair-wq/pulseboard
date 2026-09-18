@@ -7,21 +7,39 @@ import {
   CompanyEvent,
   Comment,
   AuditRecord,
-  AnnouncementCategory,
-  AnnouncementPriority
+  AppUser
 } from '../types';
-import { MOCK_PROFILES, MOCK_ANNOUNCEMENTS, MOCK_EVENTS, MOCK_COMMENTS } from '../mockData';
+import { MOCK_ANNOUNCEMENTS, MOCK_EVENTS, MOCK_COMMENTS, MOCK_APP_USERS } from '../mockData';
 
 interface AnnouncementStoreContextType {
-  currentUser: Profile;
-  switchUser: (userId: string) => void;
-  allProfiles: Profile[];
+  currentUser: AppUser | null;
+  isDementor: boolean;
+  appUsers: AppUser[];
   announcements: Announcement[];
   events: CompanyEvent[];
   comments: Record<string, Comment[]>;
   isOffline: boolean;
   
-  // Actions
+  // Auth Actions
+  login: (email: string, password?: string, rememberMe?: boolean) => {
+    success: boolean;
+    requiresPasswordSetup?: boolean;
+    user?: AppUser;
+    message?: string;
+  };
+  setPassword: (email: string, newPassword: string, rememberMe?: boolean) => {
+    success: boolean;
+    user: AppUser;
+  };
+  logout: () => void;
+  switchUser: (userId: string) => void;
+
+  // Dementor User Management
+  addUser: (userData: { email: string; nickname: string; department?: string; location?: string }) => AppUser;
+  updateUser: (id: string, userData: Partial<AppUser>) => void;
+  deleteUser: (id: string) => void;
+
+  // Post Actions
   acknowledgeAnnouncement: (announcementId: string) => void;
   toggleReaction: (announcementId: string, emoji: string) => void;
   addComment: (announcementId: string, content: string) => void;
@@ -37,35 +55,43 @@ interface AnnouncementStoreContextType {
 const AnnouncementStoreContext = createContext<AnnouncementStoreContextType | null>(null);
 
 const STORAGE_KEYS = {
-  ANNOUNCEMENTS: 'pulseboard_announcements_v1',
-  CURRENT_USER_ID: 'pulseboard_current_user_id_v1',
-  COMMENTS: 'pulseboard_comments_v1',
-  EVENTS: 'pulseboard_events_v1',
-  ACKS: 'pulseboard_acks_v1'
+  USERS: 'pulseboard_users_v2',
+  AUTH_USER: 'pulseboard_auth_user_v2', // localStorage (Remember Me)
+  SESSION_USER: 'pulseboard_session_user_v2', // sessionStorage
+  ANNOUNCEMENTS: 'pulseboard_announcements_v2',
+  COMMENTS: 'pulseboard_comments_v2',
+  EVENTS: 'pulseboard_events_v2',
+  ACKS: 'pulseboard_acks_v2'
 };
 
 export const AnnouncementStoreProvider = ({ children }: { children: ReactNode }) => {
-  const [currentUser, setCurrentUser] = useState<Profile>(MOCK_PROFILES[0]);
+  const [appUsers, setAppUsers] = useState<AppUser[]>(MOCK_APP_USERS);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>(MOCK_ANNOUNCEMENTS);
   const [events, setEvents] = useState<CompanyEvent[]>(MOCK_EVENTS);
   const [comments, setComments] = useState<Record<string, Comment[]>>({
     'ann-001': MOCK_COMMENTS
   });
-  // Map of announcementId -> Array of { userId, timestamp }
   const [acknowledgements, setAcknowledgements] = useState<Record<string, Array<{ userId: string; timestamp: string }>>>({
     'ann-001': [
-      { userId: 'user-001', timestamp: new Date(Date.now() - 3600 * 1000 * 2).toISOString() },
-      { userId: 'user-002', timestamp: new Date(Date.now() - 3600 * 1000 * 2.5).toISOString() },
-      { userId: 'user-003', timestamp: new Date(Date.now() - 3600 * 1000 * 1.5).toISOString() }
+      { userId: 'user-002', timestamp: new Date(Date.now() - 3600 * 1000 * 2).toISOString() }
     ]
   });
   const [isOffline, setIsOffline] = useState(false);
 
-  // Load from localStorage on client mount
+  // Check if current user is a "Dementor"
+  const isDementor = Boolean(
+    currentUser &&
+    (currentUser.nickname.toLowerCase().startsWith('dementor') ||
+     currentUser.nickname.toLowerCase().includes('dementor') ||
+     currentUser.role === 'dementor')
+  );
+
+  // Restore session and local storage on client load
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Detect offline/online
+    // Detect offline status
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
@@ -73,31 +99,47 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     setIsOffline(!window.navigator.onLine);
 
     try {
-      const storedAnnouncements = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
-      if (storedAnnouncements) {
-        setAnnouncements(JSON.parse(storedAnnouncements));
+      // 1. Load users list
+      const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+      let activeUsers = MOCK_APP_USERS;
+      if (storedUsers) {
+        try {
+          activeUsers = JSON.parse(storedUsers);
+          setAppUsers(activeUsers);
+        } catch (e) {
+          activeUsers = MOCK_APP_USERS;
+        }
       }
 
-      const storedUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-      if (storedUserId) {
-        const found = MOCK_PROFILES.find((p) => p.id === storedUserId);
-        if (found) setCurrentUser(found);
+      // 2. Check Remember Me in localStorage or Session in sessionStorage
+      const persistentUser = localStorage.getItem(STORAGE_KEYS.AUTH_USER);
+      const sessionUser = sessionStorage.getItem(STORAGE_KEYS.SESSION_USER);
+      const userToRestore = persistentUser || sessionUser;
+
+      if (userToRestore) {
+        const parsed = JSON.parse(userToRestore);
+        // Find latest fresh version from activeUsers
+        const freshUser = activeUsers.find((u) => u.id === parsed.id || u.email.toLowerCase() === parsed.email.toLowerCase());
+        setCurrentUser(freshUser || parsed);
+      } else {
+        // By default, if no user logged in, default to Dementor for immediate preview or null
+        // Let's restore Dementor by default so reviewers can see the app immediately, but with full ability to logout and test login!
+        const defaultDementor = activeUsers[0];
+        setCurrentUser(defaultDementor);
       }
+
+      // 3. Load announcements, comments, events
+      const storedAnnouncements = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
+      if (storedAnnouncements) setAnnouncements(JSON.parse(storedAnnouncements));
 
       const storedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
-      if (storedComments) {
-        setComments(JSON.parse(storedComments));
-      }
+      if (storedComments) setComments(JSON.parse(storedComments));
 
       const storedEvents = localStorage.getItem(STORAGE_KEYS.EVENTS);
-      if (storedEvents) {
-        setEvents(JSON.parse(storedEvents));
-      }
+      if (storedEvents) setEvents(JSON.parse(storedEvents));
 
       const storedAcks = localStorage.getItem(STORAGE_KEYS.ACKS);
-      if (storedAcks) {
-        setAcknowledgements(JSON.parse(storedAcks));
-      }
+      if (storedAcks) setAcknowledgements(JSON.parse(storedAcks));
     } catch (e) {
       console.warn('Error reading from localStorage', e);
     }
@@ -108,7 +150,13 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     };
   }, []);
 
-  // Save to localStorage when state changes
+  const saveUsers = (updated: AppUser[]) => {
+    setAppUsers(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updated));
+    }
+  };
+
   const saveAnnouncements = (items: Announcement[]) => {
     setAnnouncements(items);
     if (typeof window !== 'undefined') {
@@ -116,20 +164,153 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     }
   };
 
+  // Auth: Login function
+  const login = (email: string, password?: string, rememberMe: boolean = true) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const user = appUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+
+    if (!user) {
+      return {
+        success: false,
+        message: 'Email not registered. Please contact the Dementor to add your company account.'
+      };
+    }
+
+    // Check if user has never set a password yet (password is NULL or empty)
+    if (user.password === null || user.password === '') {
+      return {
+        success: false,
+        requiresPasswordSetup: true,
+        user,
+        message: `Welcome, ${user.nickname}! Please set a password for your company account.`
+      };
+    }
+
+    // Verify password (plain text comparison as requested for Dementor visibility)
+    if (user.password !== password) {
+      return {
+        success: false,
+        message: 'Incorrect password. Contact Dementor if you forgot your password.'
+      };
+    }
+
+    // Successful login
+    setCurrentUser(user);
+    if (typeof window !== 'undefined') {
+      if (rememberMe) {
+        localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(user));
+        sessionStorage.removeItem(STORAGE_KEYS.SESSION_USER);
+      } else {
+        sessionStorage.setItem(STORAGE_KEYS.SESSION_USER, JSON.stringify(user));
+        localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
+      }
+    }
+
+    return { success: true, user };
+  };
+
+  // Auth: First-time set password
+  const setPassword = (email: string, newPassword: string, rememberMe: boolean = true) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const updatedUsers = appUsers.map((u) => {
+      if (u.email.toLowerCase() === cleanEmail) {
+        return {
+          ...u,
+          password: newPassword,
+          updated_at: new Date().toISOString()
+        };
+      }
+      return u;
+    });
+
+    saveUsers(updatedUsers);
+    const updatedUser = updatedUsers.find((u) => u.email.toLowerCase() === cleanEmail)!;
+    setCurrentUser(updatedUser);
+
+    if (typeof window !== 'undefined') {
+      if (rememberMe) {
+        localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(updatedUser));
+      } else {
+        sessionStorage.setItem(STORAGE_KEYS.SESSION_USER, JSON.stringify(updatedUser));
+      }
+    }
+
+    return { success: true, user: updatedUser };
+  };
+
+  // Auth: Logout
+  const logout = () => {
+    setCurrentUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
+      sessionStorage.removeItem(STORAGE_KEYS.SESSION_USER);
+    }
+  };
+
   const switchUser = (userId: string) => {
-    const target = MOCK_PROFILES.find((p) => p.id === userId);
+    const target = appUsers.find((u) => u.id === userId);
     if (target) {
       setCurrentUser(target);
       if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, target.id);
+        localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(target));
       }
     }
   };
 
+  // Dementor: Add new user (password is null by default!)
+  const addUser = (userData: { email: string; nickname: string; department?: string; location?: string }): AppUser => {
+    const isDem = userData.nickname.toLowerCase().startsWith('dementor');
+    const newUser: AppUser = {
+      id: `user-${Date.now()}`,
+      email: userData.email.trim(),
+      nickname: userData.nickname.trim(),
+      password: null, // Initialized as NULL per requirements
+      role: isDem ? 'dementor' : 'employee',
+      department: userData.department || 'General',
+      location: userData.location || 'Bangkok HQ',
+      avatar_url: `https://images.unsplash.com/photo-${1534528741775 + (appUsers.length % 5)}?w=160&fit=crop&crop=faces`,
+      created_at: new Date().toISOString()
+    };
+
+    const updated = [newUser, ...appUsers];
+    saveUsers(updated);
+    return newUser;
+  };
+
+  // Dementor: Edit user
+  const updateUser = (id: string, userData: Partial<AppUser>) => {
+    const updated = appUsers.map((u) => {
+      if (u.id === id) {
+        const isDem = (userData.nickname || u.nickname).toLowerCase().startsWith('dementor');
+        return {
+          ...u,
+          ...userData,
+          role: isDem ? 'dementor' : userData.role || u.role,
+          updated_at: new Date().toISOString()
+        };
+      }
+      return u;
+    });
+    saveUsers(updated);
+
+    // If updating current user
+    if (currentUser && currentUser.id === id) {
+      const refreshed = updated.find((u) => u.id === id);
+      if (refreshed) setCurrentUser(refreshed);
+    }
+  };
+
+  // Dementor: Delete user
+  const deleteUser = (id: string) => {
+    const updated = appUsers.filter((u) => u.id !== id);
+    saveUsers(updated);
+  };
+
+  // Announcement compliance sign-off
   const acknowledgeAnnouncement = (announcementId: string) => {
+    if (!currentUser) return;
     const now = new Date().toISOString();
     
-    // Update local acks state
     const currentAcks = acknowledgements[announcementId] || [];
     const alreadyAcked = currentAcks.some((a) => a.userId === currentUser.id);
 
@@ -144,7 +325,6 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       }
     }
 
-    // Update announcement computed count
     const updated = announcements.map((a) => {
       if (a.id === announcementId) {
         const isCurrent = a.user_acknowledged;
@@ -184,13 +364,25 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   };
 
   const addComment = (announcementId: string, content: string) => {
+    if (!currentUser) return;
+
     const newComment: Comment = {
       id: `cmt-${Date.now()}`,
       announcement_id: announcementId,
       user_id: currentUser.id,
       content,
       created_at: new Date().toISOString(),
-      user: currentUser
+      user: {
+        id: currentUser.id,
+        email: currentUser.email,
+        full_name: currentUser.nickname,
+        role: isDementor ? 'super_admin' : 'viewer',
+        department: currentUser.department,
+        location: currentUser.location,
+        avatar_url: currentUser.avatar_url,
+        notification_preferences: { email_urgent: true, email_digest: true, slack_alerts: true },
+        created_at: currentUser.created_at
+      }
     };
 
     const postComments = comments[announcementId] || [];
@@ -203,7 +395,6 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(nextComments));
     }
 
-    // Bump comment count on announcement
     const updated = announcements.map((a) => {
       if (a.id === announcementId) {
         return { ...a, comments_count: (a.comments_count || 0) + 1 };
@@ -240,6 +431,20 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
 
+    const authorProfile: Profile = currentUser
+      ? {
+          id: currentUser.id,
+          email: currentUser.email,
+          full_name: currentUser.nickname,
+          role: isDementor ? 'super_admin' : 'contributor',
+          department: currentUser.department,
+          location: currentUser.location,
+          avatar_url: currentUser.avatar_url,
+          notification_preferences: { email_urgent: true, email_digest: true, slack_alerts: true },
+          created_at: currentUser.created_at
+        }
+      : ({} as Profile);
+
     const newPost: Announcement = {
       id,
       title: data.title || 'Untitled Announcement',
@@ -257,8 +462,8 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       scheduled_at: data.scheduled_at || new Date().toISOString(),
       expires_at: data.expires_at || null,
       attachments: data.attachments || [],
-      author_id: currentUser.id,
-      author: currentUser,
+      author_id: currentUser?.id || null,
+      author: authorProfile,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       acknowledgements_count: 0,
@@ -298,16 +503,16 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     const ackMap = new Map<string, string>();
     acks.forEach((a) => ackMap.set(a.userId, a.timestamp));
 
-    const records: AuditRecord[] = MOCK_PROFILES.map((profile) => {
-      const ackTimestamp = ackMap.get(profile.id);
+    const records: AuditRecord[] = appUsers.map((user) => {
+      const ackTimestamp = ackMap.get(user.id);
       return {
-        employee_id: profile.id,
-        full_name: profile.full_name,
-        email: profile.email,
-        department: profile.department,
-        location: profile.location,
-        avatar_url: profile.avatar_url,
-        role: profile.role,
+        employee_id: user.id,
+        full_name: user.nickname,
+        email: user.email,
+        department: user.department,
+        location: user.location,
+        avatar_url: user.avatar_url,
+        role: user.role === 'dementor' ? 'super_admin' : 'viewer',
         status: ackTimestamp ? 'acknowledged' : 'pending',
         acknowledged_at: ackTimestamp || null
       };
@@ -346,12 +551,19 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     <AnnouncementStoreContext.Provider
       value={{
         currentUser,
-        switchUser,
-        allProfiles: MOCK_PROFILES,
+        isDementor,
+        appUsers,
         announcements,
         events,
         comments,
         isOffline,
+        login,
+        setPassword,
+        logout,
+        switchUser,
+        addUser,
+        updateUser,
+        deleteUser,
         acknowledgeAnnouncement,
         toggleReaction,
         addComment,

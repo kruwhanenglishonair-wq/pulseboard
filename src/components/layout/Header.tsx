@@ -1,41 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
-  Bell,
-  WifiOff,
   Sparkles,
   MapPin,
-  ChevronDown,
-  Sun,
-  Moon,
-  ShieldCheck,
-  Smartphone
+  WifiOff,
+  LogOut,
+  Users,
+  LogIn,
+  Crown
 } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 
 export const Header = () => {
-  const { currentUser, switchUser, allProfiles, isOffline, announcements } = useAnnouncementStore();
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
-  const [isLight, setIsLight] = useState(false);
+  const router = useRouter();
+  const { currentUser, isDementor, logout, isOffline, announcements } = useAnnouncementStore();
 
   const urgentCount = announcements.filter((a) => a.priority === 'URGENT' && !a.user_acknowledged).length;
 
-  const toggleTheme = () => {
-    const next = !isLight;
-    setIsLight(next);
-    document.documentElement.setAttribute('data-theme', next ? 'light' : 'dark');
-  };
-
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'Super Admin';
-      case 'hr_admin': return 'HR Admin';
-      case 'contributor': return 'Contributor';
-      default: return 'Employee';
-    }
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
   };
 
   return (
@@ -45,15 +33,15 @@ export const Header = () => {
         top: 0,
         zIndex: 50,
         height: 'var(--header-height)',
-        background: 'var(--bg-glass)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid var(--border-subtle)',
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: '1px solid #e2e8f0',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 20px',
-        transition: 'background var(--transition-smooth)'
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)'
       }}
     >
       {/* Left: Brand + Office */}
@@ -68,39 +56,57 @@ export const Header = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px var(--brand-glow)'
+              boxShadow: '0 4px 12px var(--brand-glow)',
+              color: '#fff'
             }}
           >
-            <Sparkles size={20} color="#fff" />
+            <Sparkles size={20} />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em', background: 'linear-gradient(135deg, #fff 40%, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: 18,
+                letterSpacing: '-0.02em',
+                color: '#0f172a'
+              }}
+            >
               PulseBoard
             </div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--brand-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Company Hub
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: 'var(--brand-primary)',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase'
+              }}
+            >
+              Company Portal
             </div>
           </div>
         </Link>
 
         {/* Office Location indicator */}
-        <div
-          style={{
-            display: 'none',
-            alignItems: 'center',
-            gap: 6,
-            padding: '4px 10px',
-            borderRadius: 20,
-            background: 'var(--bg-surface-elevated)',
-            border: '1px solid var(--border-subtle)',
-            fontSize: 12,
-            color: 'var(--text-secondary)'
-          }}
-          className="desktop-only"
-        >
-          <MapPin size={13} color="var(--brand-secondary)" />
-          <span>{currentUser.location}</span>
-        </div>
+        {currentUser && (
+          <div
+            style={{
+              display: 'none',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              borderRadius: 20,
+              background: '#f1f5f9',
+              border: '1px solid #e2e8f0',
+              fontSize: 12,
+              color: '#475569'
+            }}
+            className="desktop-only"
+          >
+            <MapPin size={13} color="var(--brand-secondary)" />
+            <span>{currentUser.location}</span>
+          </div>
+        )}
 
         {/* Offline Badge */}
         {isOffline && (
@@ -111,15 +117,15 @@ export const Header = () => {
               gap: 6,
               padding: '4px 10px',
               borderRadius: 20,
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#f87171',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#dc2626',
               fontSize: 12,
-              fontWeight: 600
+              fontWeight: 700
             }}
           >
             <WifiOff size={13} />
-            <span>Offline Shell</span>
+            <span>Offline Cache</span>
           </div>
         )}
       </div>
@@ -136,9 +142,9 @@ export const Header = () => {
               gap: 6,
               padding: '6px 12px',
               borderRadius: 20,
-              background: 'var(--urgent-bg)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#f87171',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#dc2626',
               fontSize: 12,
               fontWeight: 700
             }}
@@ -149,142 +155,73 @@ export const Header = () => {
           </Link>
         )}
 
-        {/* Theme Toggle */}
-        <button
-          onClick={toggleTheme}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'var(--bg-surface-elevated)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)'
-          }}
-          title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-          aria-label="Toggle theme"
-        >
-          {isLight ? <Moon size={17} /> : <Sun size={17} />}
-        </button>
-
-        {/* Role Switcher & User Profile Menu */}
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => setShowRoleMenu(!showRoleMenu)}
+        {/* Dementor User Management Quick Link */}
+        {isDementor && (
+          <Link
+            href="/users"
+            className="btn btn-secondary btn-sm"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '4px 10px 4px 6px',
-              borderRadius: 24,
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
-              transition: 'border-color var(--transition-fast)'
+              gap: 6,
+              borderColor: '#fca5a5',
+              background: '#fff1f2',
+              color: '#be123c',
+              fontWeight: 700
             }}
-            title="Switch demo persona/role"
+            title="Manage Company Users & View Plain-Text Passwords"
           >
-            <Image
-              src={currentUser.avatar_url}
-              alt={currentUser.full_name}
-              width={28}
-              height={28}
-              style={{
-                borderRadius: '50%',
-                objectFit: 'cover'
-              }}
-            />
-            <div style={{ textAlign: 'left', display: 'none' }} className="desktop-only">
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-                {currentUser.full_name.split(' ')[0]}
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--brand-secondary)' }}>
-                {getRoleLabel(currentUser.role)}
-              </div>
-            </div>
-            <ChevronDown size={14} color="var(--text-muted)" />
-          </button>
+            <Crown size={14} color="#e11d48" />
+            <span className="desktop-only">User Passwords</span>
+          </Link>
+        )}
 
-          {/* Role switcher dropdown */}
-          {showRoleMenu && (
+        {/* User Profile Pill & Logout */}
+        {currentUser ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div
               style={{
-                position: 'absolute',
-                top: 44,
-                right: 0,
-                width: 280,
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 16,
-                boxShadow: 'var(--shadow-lg)',
-                padding: '10px 8px',
-                zIndex: 100,
-                animation: 'fadeIn 150ms ease'
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 12px 4px 6px',
+                borderRadius: 24,
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0'
               }}
             >
-              <div
-                style={{
-                  padding: '6px 12px 10px',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  marginBottom: 6
-                }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-                  Demo Persona & Role Switcher
+              <Image
+                src={currentUser.avatar_url}
+                alt={currentUser.nickname}
+                width={28}
+                height={28}
+                style={{ borderRadius: '50%', objectFit: 'cover' }}
+              />
+              <div style={{ textAlign: 'left', display: 'none' }} className="desktop-only">
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
+                  {currentUser.nickname}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                  Switch to preview permissions & audit sign-offs
+                <div style={{ fontSize: 10, fontWeight: 600, color: isDementor ? '#dc2626' : '#2563eb' }}>
+                  {isDementor ? 'Dementor Admin' : currentUser.department}
                 </div>
               </div>
-
-              {allProfiles.map((p) => {
-                const isActive = p.id === currentUser.id;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      switchUser(p.id);
-                      setShowRoleMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 10px',
-                      borderRadius: 10,
-                      background: isActive ? 'var(--bg-surface-elevated)' : 'transparent',
-                      border: isActive ? '1px solid var(--border-active)' : '1px solid transparent',
-                      textAlign: 'left',
-                      transition: 'background var(--transition-fast)'
-                    }}
-                  >
-                    <Image
-                      src={p.avatar_url}
-                      alt={p.full_name}
-                      width={32}
-                      height={32}
-                      style={{
-                        borderRadius: '50%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {p.full_name}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {getRoleLabel(p.role)} • {p.department}
-                      </div>
-                    </div>
-                    {isActive && <ShieldCheck size={16} color="var(--brand-secondary)" />}
-                  </button>
-                );
-              })}
             </div>
-          )}
-        </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="btn btn-secondary btn-sm"
+              style={{ padding: '6px 10px', color: '#64748b' }}
+              title="Sign Out"
+            >
+              <LogOut size={15} />
+              <span className="desktop-only" style={{ fontSize: 12 }}>Logout</span>
+            </button>
+          </div>
+        ) : (
+          <Link href="/login" className="btn btn-primary btn-sm" style={{ gap: 6 }}>
+            <LogIn size={15} />
+            <span>Sign In</span>
+          </Link>
+        )}
       </div>
 
       <style jsx>{`

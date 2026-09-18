@@ -8,6 +8,25 @@ export type AnnouncementStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED
 
 export type TargetAudienceType = 'ALL' | 'DEPARTMENT' | 'LOCATION';
 
+export interface AppUser {
+  id: string;
+  email: string;
+  nickname: string;
+  full_name?: string; // Alias for nickname
+  password: string | null; // Stored in plain text as requested for Dementor recovery
+  role: 'dementor' | 'employee' | string;
+  department: string;
+  location: string;
+  avatar_url: string;
+  notification_preferences?: {
+    email_urgent: boolean;
+    email_digest: boolean;
+    slack_alerts: boolean;
+  };
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface Profile {
   id: string;
   email: string;

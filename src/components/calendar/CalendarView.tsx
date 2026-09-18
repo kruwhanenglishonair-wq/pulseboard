@@ -33,7 +33,10 @@ export const CalendarView = () => {
   const [newEventStart, setNewEventStart] = useState('');
   const [newEventEnd, setNewEventEnd] = useState('');
 
-  const isAdmin = ['super_admin', 'hr_admin', 'contributor'].includes(currentUser.role);
+  const isAdmin = currentUser
+    ? (['super_admin', 'hr_admin', 'contributor', 'dementor'].includes(currentUser.role) ||
+       currentUser.nickname.toLowerCase().includes('dementor'))
+    : false;
 
   const categories = ['ALL', 'Town Hall', 'Office Closure', 'Deadline', 'Social'];
 
@@ -83,7 +86,7 @@ export const CalendarView = () => {
       {/* Top Header & Filter Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 6 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: 6 }}>
             Company Calendar & Schedules
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
@@ -259,9 +262,9 @@ export const CalendarView = () => {
                     width: '100%',
                     padding: '8px 12px',
                     borderRadius: 8,
-                    background: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    color: '#fff'
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    color: '#0f172a'
                   }}
                 />
               </div>
@@ -278,9 +281,9 @@ export const CalendarView = () => {
                       width: '100%',
                       padding: '8px 12px',
                       borderRadius: 8,
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      color: '#fff'
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      color: '#0f172a'
                     }}
                   >
                     <option value="Town Hall">Town Hall</option>
@@ -302,9 +305,9 @@ export const CalendarView = () => {
                       width: '100%',
                       padding: '8px 12px',
                       borderRadius: 8,
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      color: '#fff'
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      color: '#0f172a'
                     }}
                   />
                 </div>
@@ -323,9 +326,9 @@ export const CalendarView = () => {
                       width: '100%',
                       padding: '8px 12px',
                       borderRadius: 8,
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      color: '#fff'
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      color: '#0f172a'
                     }}
                   />
                 </div>
@@ -341,9 +344,9 @@ export const CalendarView = () => {
                       width: '100%',
                       padding: '8px 12px',
                       borderRadius: 8,
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      color: '#fff'
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      color: '#0f172a'
                     }}
                   />
                 </div>

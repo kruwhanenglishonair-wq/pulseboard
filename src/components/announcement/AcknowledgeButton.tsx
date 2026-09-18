@@ -71,7 +71,7 @@ export const AcknowledgeButton: React.FC<AcknowledgeButtonProps> = ({
               Acknowledged by You
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              Verified compliance receipt for {currentUser.full_name} on {formattedDate}
+              Verified compliance receipt for {currentUser?.nickname || currentUser?.full_name || 'You'} on {formattedDate}
             </div>
           </div>
         </div>

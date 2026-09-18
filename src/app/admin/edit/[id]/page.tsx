@@ -33,7 +33,7 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
       </div>
 
       <div>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 4 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: 4 }}>
           Edit Announcement
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>

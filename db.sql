@@ -31,7 +31,24 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- 4. User Profiles Table (Linked with Supabase auth.users)
+-- 4. Application Users Table (Company credentials, Dementor management & Plain-text password lookup)
+CREATE TABLE IF NOT EXISTS public.app_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    nickname TEXT NOT NULL,
+    password TEXT, -- Stored as readable text as requested so Dementors can help employees who forget their password. NULL until first login.
+    role TEXT NOT NULL DEFAULT 'employee', -- 'dementor' or 'employee'
+    department TEXT DEFAULT 'General',
+    location TEXT DEFAULT 'Bangkok HQ',
+    avatar_url TEXT DEFAULT 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&fit=crop&crop=faces',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_users_email ON public.app_users(email);
+CREATE INDEX IF NOT EXISTS idx_app_users_nickname ON public.app_users(nickname);
+
+-- 5. User Profiles Table (Linked with Supabase auth.users)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
@@ -463,3 +480,49 @@ INSERT INTO public.company_events (
     false
 )
 ON CONFLICT DO NOTHING;
+
+-- Seed Initial App Users (Dementor Admin and employees)
+INSERT INTO public.app_users (
+    id, email, nickname, password, role, department, location, avatar_url
+) VALUES
+(
+    '00000000-0000-0000-0000-000000000001',
+    'dementor@company.com',
+    'Dementor Admin',
+    'dementor123',
+    'dementor',
+    'Executive Management',
+    'Bangkok HQ',
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&fit=crop&crop=faces'
+),
+(
+    '00000000-0000-0000-0000-000000000002',
+    'sarah.jenkins@company.com',
+    'Sarah',
+    NULL, -- First-time login user
+    'employee',
+    'People & HR',
+    'Bangkok HQ',
+    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&fit=crop&crop=faces'
+),
+(
+    '00000000-0000-0000-0000-000000000003',
+    'alex.rivera@company.com',
+    'Alex',
+    'password123',
+    'employee',
+    'IT & Security Operations',
+    'Bangkok HQ',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&fit=crop&crop=faces'
+),
+(
+    '00000000-0000-0000-0000-000000000004',
+    'marcus.chen@company.com',
+    'Marcus',
+    NULL,
+    'employee',
+    'Platform Engineering',
+    'Singapore',
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&fit=crop&crop=faces'
+)
+ON CONFLICT (email) DO NOTHING;

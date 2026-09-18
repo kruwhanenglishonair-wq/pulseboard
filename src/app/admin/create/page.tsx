@@ -17,7 +17,7 @@ export default function CreatePostPage() {
       </div>
 
       <div>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 4 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: 4 }}>
           Create & Broadcast Announcement
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>

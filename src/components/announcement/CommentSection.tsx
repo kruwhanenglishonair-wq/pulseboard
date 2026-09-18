@@ -61,8 +61,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
             }}
           >
             <Image
-              src={currentUser.avatar_url}
-              alt={currentUser.full_name}
+              src={currentUser?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+              alt={currentUser?.nickname || 'Avatar'}
               width={36}
               height={36}
               style={{
@@ -74,7 +74,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder={`Comment as ${currentUser.full_name}...`}
+                placeholder={`Comment as ${currentUser?.nickname || currentUser?.full_name || 'Employee'}...`}
                 rows={2}
                 style={{
                   width: '100%',

@@ -3,14 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, PlusCircle, Layers, User } from 'lucide-react';
+import { Home, Calendar, PlusCircle, Layers, User, Crown } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 
 export const BottomNav = () => {
   const pathname = usePathname();
-  const { currentUser } = useAnnouncementStore();
-
-  const isAdminOrContributor = ['super_admin', 'hr_admin', 'contributor'].includes(currentUser.role);
+  const { isDementor } = useAnnouncementStore();
 
   return (
     <nav
@@ -20,15 +18,16 @@ export const BottomNav = () => {
         left: 0,
         right: 0,
         height: 'var(--bottom-nav-height)',
-        background: 'var(--bg-glass)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderTop: '1px solid var(--border-subtle)',
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderTop: '1px solid #e2e8f0',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-around',
         zIndex: 50,
-        padding: '0 8px'
+        padding: '0 8px',
+        boxShadow: '0 -2px 10px rgba(15, 23, 42, 0.04)'
       }}
       className="mobile-bottom-nav"
     >
@@ -39,12 +38,12 @@ export const BottomNav = () => {
           flexDirection: 'column',
           alignItems: 'center',
           gap: 4,
-          color: pathname === '/' ? 'var(--brand-secondary)' : 'var(--text-muted)',
+          color: pathname === '/' ? '#2563eb' : '#64748b',
           fontSize: 11,
           fontWeight: pathname === '/' ? 700 : 500
         }}
       >
-        <Home size={20} />
+        <Home size={19} />
         <span>Feed</span>
       </Link>
 
@@ -55,52 +54,68 @@ export const BottomNav = () => {
           flexDirection: 'column',
           alignItems: 'center',
           gap: 4,
-          color: pathname === '/calendar' ? 'var(--brand-secondary)' : 'var(--text-muted)',
+          color: pathname === '/calendar' ? '#2563eb' : '#64748b',
           fontSize: 11,
           fontWeight: pathname === '/calendar' ? 700 : 500
         }}
       >
-        <Calendar size={20} />
+        <Calendar size={19} />
         <span>Calendar</span>
       </Link>
 
-      {isAdminOrContributor && (
-        <Link
-          href="/admin/create"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 44,
-            height: 44,
-            borderRadius: '50%',
-            background: 'var(--brand-gradient)',
-            color: '#fff',
-            marginTop: -16,
-            boxShadow: '0 4px 16px var(--brand-glow)',
-            border: '2px solid var(--bg-surface)'
-          }}
-          aria-label="Create new announcement"
-        >
-          <PlusCircle size={24} />
-        </Link>
-      )}
-
       <Link
-        href="/categories"
+        href="/admin/create"
         style={{
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
-          gap: 4,
-          color: pathname === '/categories' ? 'var(--brand-secondary)' : 'var(--text-muted)',
-          fontSize: 11,
-          fontWeight: pathname === '/categories' ? 700 : 500
+          justifyContent: 'center',
+          width: 44,
+          height: 44,
+          borderRadius: '50%',
+          background: 'var(--brand-gradient)',
+          color: '#fff',
+          marginTop: -16,
+          boxShadow: '0 4px 14px var(--brand-glow)',
+          border: '3px solid #ffffff'
         }}
+        aria-label="Create new announcement"
       >
-        <Layers size={20} />
-        <span>Hubs</span>
+        <PlusCircle size={24} />
       </Link>
+
+      {isDementor ? (
+        <Link
+          href="/users"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 4,
+            color: pathname === '/users' ? '#e11d48' : '#be123c',
+            fontSize: 11,
+            fontWeight: pathname === '/users' ? 800 : 600
+          }}
+        >
+          <Crown size={19} color={pathname === '/users' ? '#e11d48' : '#be123c'} />
+          <span>Users</span>
+        </Link>
+      ) : (
+        <Link
+          href="/categories"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 4,
+            color: pathname === '/categories' ? '#2563eb' : '#64748b',
+            fontSize: 11,
+            fontWeight: pathname === '/categories' ? 700 : 500
+          }}
+        >
+          <Layers size={19} />
+          <span>Hubs</span>
+        </Link>
+      )}
 
       <Link
         href="/profile"
@@ -109,12 +124,12 @@ export const BottomNav = () => {
           flexDirection: 'column',
           alignItems: 'center',
           gap: 4,
-          color: pathname === '/profile' ? 'var(--brand-secondary)' : 'var(--text-muted)',
+          color: pathname === '/profile' ? '#2563eb' : '#64748b',
           fontSize: 11,
           fontWeight: pathname === '/profile' ? 700 : 500
         }}
       >
-        <User size={20} />
+        <User size={19} />
         <span>Profile</span>
       </Link>
 

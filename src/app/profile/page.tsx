@@ -25,9 +25,9 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'SAVED' | 'ACKS' | 'SETTINGS'>('SAVED');
 
   // Preferences State
-  const [emailUrgent, setEmailUrgent] = useState(currentUser.notification_preferences.email_urgent);
-  const [emailDigest, setEmailDigest] = useState(currentUser.notification_preferences.email_digest);
-  const [slackAlerts, setSlackAlerts] = useState(currentUser.notification_preferences.slack_alerts);
+  const [emailUrgent, setEmailUrgent] = useState(currentUser?.notification_preferences?.email_urgent ?? true);
+  const [emailDigest, setEmailDigest] = useState(currentUser?.notification_preferences?.email_digest ?? true);
+  const [slackAlerts, setSlackAlerts] = useState(currentUser?.notification_preferences?.slack_alerts ?? false);
 
   const bookmarkedPosts = announcements.filter((a) => a.user_bookmarked);
   const acknowledgedPosts = announcements.filter((a) => a.user_acknowledged);
@@ -53,8 +53,8 @@ export default function ProfilePage() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <Image
-            src={currentUser.avatar_url}
-            alt={currentUser.full_name}
+            src={currentUser?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+            alt={currentUser?.nickname || 'Profile'}
             width={72}
             height={72}
             style={{
@@ -65,23 +65,23 @@ export default function ProfilePage() {
           />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>{currentUser.full_name}</h1>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a' }}>{currentUser?.nickname || currentUser?.full_name || 'User Profile'}</h1>
               <span className="badge badge-general" style={{ fontSize: 11, textTransform: 'capitalize' }}>
-                {currentUser.role.replace('_', ' ')}
+                {currentUser?.role ? currentUser.role.replace('_', ' ') : 'Employee'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <Mail size={14} color="var(--brand-secondary)" />
-                <span>{currentUser.email}</span>
+                <span>{currentUser?.email || 'N/A'}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <Building size={14} color="var(--brand-secondary)" />
-                <span>{currentUser.department}</span>
+                <span>{currentUser?.department || 'General'}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <MapPin size={14} color="var(--brand-secondary)" />
-                <span>{currentUser.location}</span>
+                <span>{currentUser?.location || 'HQ'}</span>
               </div>
             </div>
           </div>
@@ -100,8 +100,8 @@ export default function ProfilePage() {
             borderRadius: 'var(--radius-md)',
             fontSize: 13,
             fontWeight: activeTab === 'SAVED' ? 700 : 500,
-            background: activeTab === 'SAVED' ? 'var(--bg-surface-elevated)' : 'transparent',
-            color: activeTab === 'SAVED' ? '#fff' : 'var(--text-muted)',
+            background: activeTab === 'SAVED' ? '#ffffff' : 'transparent',
+            color: activeTab === 'SAVED' ? 'var(--brand-primary)' : 'var(--text-muted)',
             border: activeTab === 'SAVED' ? '1px solid var(--border-active)' : '1px solid transparent',
             cursor: 'pointer'
           }}
@@ -120,8 +120,8 @@ export default function ProfilePage() {
             borderRadius: 'var(--radius-md)',
             fontSize: 13,
             fontWeight: activeTab === 'ACKS' ? 700 : 500,
-            background: activeTab === 'ACKS' ? 'var(--bg-surface-elevated)' : 'transparent',
-            color: activeTab === 'ACKS' ? '#fff' : 'var(--text-muted)',
+            background: activeTab === 'ACKS' ? '#ffffff' : 'transparent',
+            color: activeTab === 'ACKS' ? 'var(--brand-primary)' : 'var(--text-muted)',
             border: activeTab === 'ACKS' ? '1px solid var(--border-active)' : '1px solid transparent',
             cursor: 'pointer'
           }}
@@ -140,8 +140,8 @@ export default function ProfilePage() {
             borderRadius: 'var(--radius-md)',
             fontSize: 13,
             fontWeight: activeTab === 'SETTINGS' ? 700 : 500,
-            background: activeTab === 'SETTINGS' ? 'var(--bg-surface-elevated)' : 'transparent',
-            color: activeTab === 'SETTINGS' ? '#fff' : 'var(--text-muted)',
+            background: activeTab === 'SETTINGS' ? '#ffffff' : 'transparent',
+            color: activeTab === 'SETTINGS' ? 'var(--brand-primary)' : 'var(--text-muted)',
             border: activeTab === 'SETTINGS' ? '1px solid var(--border-active)' : '1px solid transparent',
             cursor: 'pointer'
           }}
@@ -241,7 +241,7 @@ export default function ProfilePage() {
                     </h3>
                   </Link>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                    Acknowledged by {currentUser.full_name} on {post.acknowledged_at ? new Date(post.acknowledged_at).toLocaleString() : 'Recently'}
+                    Acknowledged by {currentUser?.nickname || currentUser?.full_name || 'You'} on {post.acknowledged_at ? new Date(post.acknowledged_at).toLocaleString() : 'Recently'}
                   </div>
                 </div>
 
@@ -302,7 +302,7 @@ export default function ProfilePage() {
                   Slack Direct Alerts (@pulseboard-bot)
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Send direct bot alerts to your Slack account whenever an announcement is targeted to {currentUser.department}.
+                  Send direct bot alerts to your Slack account whenever an announcement is targeted to {currentUser?.department || 'your department'}.
                 </div>
               </div>
               <input

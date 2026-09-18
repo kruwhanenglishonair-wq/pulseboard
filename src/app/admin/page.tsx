@@ -30,7 +30,10 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'SCHEDULED' | 'DRAFT' | 'ARCHIVED'>('ACTIVE');
   const [selectedAuditPost, setSelectedAuditPost] = useState<Announcement | null>(null);
 
-  const isAdmin = ['super_admin', 'hr_admin', 'contributor'].includes(currentUser.role);
+  const isAdmin = currentUser
+    ? ['super_admin', 'hr_admin', 'contributor', 'dementor'].includes(currentUser.role) ||
+      currentUser.nickname.toLowerCase().includes('dementor')
+    : false;
 
   const filteredPosts = announcements.filter((a) => {
     if (activeTab === 'ACTIVE') return a.status === 'PUBLISHED';
@@ -59,7 +62,7 @@ export default function AdminDashboardPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <Shield size={24} color="var(--brand-secondary)" />
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
               Admin Console & Read Receipts
             </h1>
           </div>
@@ -76,7 +79,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Persona Notice if currently in viewer role */}
+      {/* Persona Notice if currently in employee role */}
       {!isAdmin && (
         <div
           style={{
@@ -91,16 +94,16 @@ export default function AdminDashboardPage() {
             gap: 12
           }}
         >
-          <div style={{ fontSize: 13, color: '#fbbf24' }}>
-            You are viewing this console as an <strong>Employee ({currentUser.full_name})</strong>.
-            Switch to an Admin persona to test post publishing and audit controls.
+          <div style={{ fontSize: 13, color: '#b45309' }}>
+            You are viewing this console as an <strong>Employee ({currentUser?.nickname || 'Guest'})</strong>.
+            Switch to a Dementor persona to test full administration.
           </div>
           <button
-            onClick={() => switchUser('user-001')}
+            onClick={() => switchUser('user-dementor')}
             className="btn btn-secondary btn-sm"
-            style={{ fontSize: 12, borderColor: '#fbbf24', color: '#fbbf24' }}
+            style={{ fontSize: 12, borderColor: '#d97706', color: '#b45309' }}
           >
-            Switch to Sarah Jenkins (Super Admin)
+            Switch to Dementor Admin
           </button>
         </div>
       )}
