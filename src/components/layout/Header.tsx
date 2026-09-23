@@ -19,15 +19,18 @@ import {
   PlusCircle,
   Shield,
   UserCheck,
-  ChevronRight
+  ChevronRight,
+  Bell,
+  Check
 } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 
 export const Header = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const { currentUser, isDementor, logout, isOffline, announcements } = useAnnouncementStore();
+  const { currentUser, isDementor, logout, isOffline, announcements, unreadCount, unreadAnnouncements, markAllAsRead, markAsRead } = useAnnouncementStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const urgentCount = announcements.filter((a) => a.priority === 'URGENT' && !a.user_acknowledged).length;
 
@@ -36,9 +39,10 @@ export const Header = () => {
     router.push('/login');
   };
 
-  // Close drawer on route change
+  // Close drawer and notifications on route change
   useEffect(() => {
     setMobileMenuOpen(false);
+    setNotificationsOpen(false);
   }, [pathname]);
 
   // Lock body scroll when drawer is open
@@ -273,6 +277,215 @@ export const Header = () => {
             </Link>
           )}
 
+          {/* Notifications Bell with Red Circle Badge */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setNotificationsOpen((prev) => !prev)}
+              aria-label="View notifications"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: notificationsOpen ? 'rgba(99, 102, 241, 0.1)' : '#ffffff',
+                border: notificationsOpen ? '1.5px solid var(--brand-primary)' : '1px solid #cbd5e1',
+                color: notificationsOpen ? 'var(--brand-primary)' : '#0f172a',
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                transition: 'all 120ms ease'
+              }}
+              title={unreadCount > 0 ? `${unreadCount} unread notification(s)` : 'No unread notifications'}
+            >
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -5,
+                    right: -6,
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    fontSize: 10,
+                    fontWeight: 800,
+                    minWidth: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.5)',
+                    border: '2px solid #ffffff',
+                    lineHeight: 1
+                  }}
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notifications Dropdown Panel */}
+            {notificationsOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 46,
+                  right: 0,
+                  width: 320,
+                  maxWidth: 'calc(100vw - 32px)',
+                  maxHeight: 400,
+                  backgroundColor: '#ffffff',
+                  borderRadius: 16,
+                  boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18)',
+                  border: '1px solid #e2e8f0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  zIndex: 100,
+                  animation: 'fadeIn 150ms ease'
+                }}
+              >
+                {/* Dropdown Header */}
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    borderBottom: '1px solid #f1f5f9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: '#f8fafc'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
+                      Notifications
+                    </span>
+                    {unreadCount > 0 && (
+                      <span
+                        style={{
+                          background: '#ef4444',
+                          color: '#ffffff',
+                          fontSize: 10,
+                          fontWeight: 800,
+                          padding: '1px 6px',
+                          borderRadius: 10
+                        }}
+                      >
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
+
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllAsRead()}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: 'var(--brand-primary)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown List */}
+                <div style={{ overflowY: 'auto', flex: 1, padding: '6px 0' }}>
+                  {unreadCount === 0 ? (
+                    <div style={{ padding: '28px 20px', textAlign: 'center', color: '#64748b' }}>
+                      <div style={{ fontSize: 24, marginBottom: 6 }}>🎉</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                        You're all caught up!
+                      </div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                        No unread announcements
+                      </div>
+                    </div>
+                  ) : (
+                    unreadAnnouncements.map((ann) => (
+                      <Link
+                        key={ann.id}
+                        href={`/announcements/${ann.id}`}
+                        onClick={() => {
+                          markAsRead(ann.id);
+                          setNotificationsOpen(false);
+                        }}
+                        style={{
+                          display: 'block',
+                          padding: '10px 16px',
+                          borderBottom: '1px solid #f8fafc',
+                          textDecoration: 'none',
+                          transition: 'background 120ms ease'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                          <span
+                            style={{
+                              fontSize: 9,
+                              fontWeight: 800,
+                              padding: '1px 6px',
+                              borderRadius: 8,
+                              background: ann.priority === 'URGENT' ? '#fee2e2' : '#eff6ff',
+                              color: ann.priority === 'URGENT' ? '#dc2626' : '#2563eb'
+                            }}
+                          >
+                            {ann.priority === 'URGENT' ? 'URGENT' : ann.category}
+                          </span>
+                          <span style={{ fontSize: 10, color: '#94a3b8' }}>
+                            {new Date(ann.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            lineHeight: 1.35,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {ann.title}
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer link to feed */}
+                <Link
+                  href="/"
+                  onClick={() => setNotificationsOpen(false)}
+                  style={{
+                    padding: '9px 16px',
+                    textAlign: 'center',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--brand-primary)',
+                    borderTop: '1px solid #f1f5f9',
+                    background: '#f8fafc',
+                    textDecoration: 'none'
+                  }}
+                >
+                  View All in Feed →
+                </Link>
+              </div>
+            )}
+          </div>
+
           {/* Mobile: Hamburger Menu Toggle Button */}
           <button
             type="button"
@@ -281,6 +494,7 @@ export const Header = () => {
             aria-expanded={mobileMenuOpen}
             className="mobile-hamburger-btn"
             style={{
+              position: 'relative',
               alignItems: 'center',
               justifyContent: 'center',
               width: 38,
@@ -295,6 +509,19 @@ export const Header = () => {
             }}
           >
             <Menu size={20} />
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 7,
+                  right: 7,
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: '#ef4444'
+                }}
+              />
+            )}
           </button>
         </div>
       </header>
@@ -511,7 +738,30 @@ export const Header = () => {
                       />
                       <span>{item.label}</span>
                     </div>
-                    <ChevronRight size={15} color={isActive ? '#2563eb' : '#94a3b8'} />
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {item.href === '/' && unreadCount > 0 && (
+                        <span
+                          style={{
+                            background: '#ef4444',
+                            color: '#ffffff',
+                            fontSize: 10,
+                            fontWeight: 800,
+                            minWidth: 18,
+                            height: 18,
+                            borderRadius: 9,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0 4px',
+                            lineHeight: 1
+                          }}
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                      <ChevronRight size={15} color={isActive ? '#2563eb' : '#94a3b8'} />
+                    </div>
                   </Link>
                 );
               })}

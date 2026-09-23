@@ -8,7 +8,7 @@ import { useAnnouncementStore } from '@/lib/store/announcementStore';
 
 export const BottomNav = () => {
   const pathname = usePathname();
-  const { isDementor } = useAnnouncementStore();
+  const { isDementor, unreadCount } = useAnnouncementStore();
 
   return (
     <nav
@@ -43,7 +43,34 @@ export const BottomNav = () => {
           fontWeight: pathname === '/' ? 700 : 500
         }}
       >
-        <Home size={19} />
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Home size={19} />
+          {unreadCount > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: -5,
+                right: -9,
+                background: '#ef4444',
+                color: '#ffffff',
+                fontSize: 10,
+                fontWeight: 800,
+                minWidth: 16,
+                height: 16,
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 3px',
+                boxShadow: '0 2px 5px rgba(239, 68, 68, 0.4)',
+                border: '1.5px solid #ffffff',
+                lineHeight: 1
+              }}
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </div>
         <span>Feed</span>
       </Link>
 

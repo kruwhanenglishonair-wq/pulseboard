@@ -158,4 +158,16 @@ self.addEventListener('message', (event) => {
       }, delayMs);
     }
   }
+
+  // Handle Home Screen App Icon Badge on Mobile
+  if (event.data.type === 'SET_APP_BADGE') {
+    const count = event.data.count || 0;
+    if ('setAppBadge' in self.navigator) {
+      if (count > 0) {
+        self.navigator.setAppBadge(count).catch(() => {});
+      } else {
+        self.navigator.clearAppBadge().catch(() => {});
+      }
+    }
+  }
 });

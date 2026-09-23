@@ -25,10 +25,11 @@ interface AnnouncementCardProps {
 }
 
 export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement }) => {
-  const { toggleReaction, toggleBookmark, currentUser } = useAnnouncementStore();
+  const { toggleReaction, toggleBookmark, currentUser, isAnnouncementRead, markAsRead } = useAnnouncementStore();
   const { showToast } = useToast();
   const [showTestModal, setShowTestModal] = useState(false);
 
+  const isRead = isAnnouncementRead(announcement.id);
   const isUrgent = announcement.priority === 'URGENT';
   const isImportant = announcement.priority === 'IMPORTANT';
 
@@ -105,6 +106,26 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement
           )}
 
           {getPriorityBadge()}
+
+          {!isRead && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '3px 8px',
+                borderRadius: 'var(--radius-full)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: '#dc2626',
+                fontSize: 11,
+                fontWeight: 800,
+                border: '1px solid rgba(239, 68, 68, 0.25)'
+              }}
+            >
+              <span className="pulsating-dot" style={{ width: 6, height: 6, background: '#ef4444' }} />
+              New
+            </span>
+          )}
 
           <span className="badge badge-category">
             {getCategoryLabel(announcement.category)}
@@ -189,7 +210,7 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement
 
       {/* Main Title & Summary */}
       <div>
-        <Link href={`/announcements/${announcement.id}`}>
+        <Link href={`/announcements/${announcement.id}`} onClick={() => markAsRead(announcement.id)}>
           <h2
             style={{
               fontSize: 18,

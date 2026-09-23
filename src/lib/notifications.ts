@@ -258,3 +258,53 @@ export const scheduleServiceWorkerNotification = (announcement: Announcement, de
     console.warn('Failed to message Service Worker for scheduled notification:', err);
   });
 };
+
+/**
+ * Update the native App Icon Badge on Mobile (iOS 16.4+ / Android PWA)
+ * This renders the red circle with the unread count directly on the home screen mobile app icon.
+ */
+export const updateAppBadge = async (count: number) => {
+  if (typeof window === 'undefined') return;
+
+  // 1. Native Web Badging API (home screen mobile icon badge)
+  if ('setAppBadge' in navigator) {
+    try {
+      if (count > 0) {
+        await (navigator as any).setAppBadge(count);
+      } else {
+        await (navigator as any).clearAppBadge();
+      }
+    } catch (err) {
+      // Badging API may be restricted depending on OS permission
+    }
+  }
+
+  // 2. Inform active Service Worker
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    try {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SET_APP_BADGE',
+        count
+      });
+    } catch (e) {}
+  }
+
+  // 3. Dynamic Browser Tab Title with Badge Counter
+  try {
+    const titleRegex = /^\(\d+\)\s*/;
+    const cleanTitle = document.title.replace(titleRegex, '');
+    if (count > 0) {
+      document.title = `(${count}) ${cleanTitle}`;
+    } else {
+      document.title = cleanTitle;
+    }
+  } catch (e) {}
+};
+
+/**
+ * Clear the native App Icon Badge
+ */
+export const clearAppBadge = async () => {
+  await updateAppBadge(0);
+};
+

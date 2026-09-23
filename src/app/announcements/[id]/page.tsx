@@ -28,11 +28,18 @@ import { useToast } from '@/components/ui/Toast';
 export default function AnnouncementDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const { announcements, toggleBookmark, currentUser } = useAnnouncementStore();
+  const { announcements, toggleBookmark, currentUser, markAsRead } = useAnnouncementStore();
   const { showToast } = useToast();
   const [showTestModal, setShowTestModal] = React.useState(false);
 
   const announcement = announcements.find((a) => a.id === resolvedParams.id);
+
+  // Mark announcement as read when viewed
+  React.useEffect(() => {
+    if (announcement) {
+      markAsRead(announcement.id);
+    }
+  }, [announcement?.id]);
 
   if (!announcement) {
     return (

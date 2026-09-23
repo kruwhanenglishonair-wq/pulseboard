@@ -12,6 +12,7 @@ import {
 } from '../types';
 import { MOCK_ANNOUNCEMENTS, MOCK_EVENTS, MOCK_COMMENTS, MOCK_APP_USERS, DEFAULT_DEPARTMENTS } from '../mockData';
 import { getSupabaseClient, isSupabaseConfigured, getSupabaseUrl, setSupabaseConfig, cleanSupabaseUrl, cleanSupabaseKey } from '../supabase';
+import { updateAppBadge } from '@/lib/notifications';
 
 interface AnnouncementStoreContextType {
   currentUser: AppUser | null;
@@ -62,6 +63,14 @@ interface AnnouncementStoreContextType {
   deleteAnnouncement: (id: string) => void;
   getAuditLogs: (announcementId: string) => { records: AuditRecord[]; rate: number; total: number; acknowledged: number };
   addEvent: (eventData: Partial<CompanyEvent>) => CompanyEvent;
+
+  // Unread & Notice Tracking (Per User)
+  unreadCount: number;
+  unreadAnnouncements: Announcement[];
+  readAnnouncementIds: string[];
+  markAsRead: (announcementId: string) => void;
+  markAllAsRead: () => void;
+  isAnnouncementRead: (announcementId: string) => boolean;
 }
 
 const AnnouncementStoreContext = createContext<AnnouncementStoreContextType | null>(null);
@@ -85,7 +94,8 @@ const STORAGE_KEYS = {
   COMMENTS: 'powerhouse_comments_v1',
   EVENTS: 'powerhouse_events_v1',
   ACKS: 'powerhouse_acks_v1',
-  DEPARTMENTS: 'powerhouse_departments_v1'
+  DEPARTMENTS: 'powerhouse_departments_v1',
+  READ_PREFIX: 'powerhouse_read_announcements_'
 };
 
 export const AnnouncementStoreProvider = ({ children }: { children: ReactNode }) => {
@@ -98,6 +108,7 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   const [acknowledgements, setAcknowledgements] = useState<Record<string, Array<{ userId: string; timestamp: string }>>>({});
   const [isOffline, setIsOffline] = useState(false);
   const [isSupabaseLive, setIsSupabaseLive] = useState(false);
+  const [readAnnouncementIds, setReadAnnouncementIds] = useState<string[]>([]);
 
   // Check if current user is a "Dementor"
   const isDementor = Boolean(
@@ -158,6 +169,17 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
 
       const storedAcks = localStorage.getItem(STORAGE_KEYS.ACKS) || localStorage.getItem('pulseboard_acks_v3');
       if (storedAcks) setAcknowledgements(JSON.parse(storedAcks));
+
+      // Load read announcement IDs for initial/current user
+      const userKey = persistentUser ? JSON.parse(persistentUser).id : 'guest';
+      const storedRead = localStorage.getItem(`${STORAGE_KEYS.READ_PREFIX}${userKey}`);
+      if (storedRead) {
+        try {
+          setReadAnnouncementIds(JSON.parse(storedRead));
+        } catch (e) {
+          setReadAnnouncementIds([]);
+        }
+      }
 
       // 4. Load departments from storage
       const storedDepts = localStorage.getItem(STORAGE_KEYS.DEPARTMENTS);
@@ -787,6 +809,9 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       }
     }
 
+    // Automatically mark as noticed/read when acknowledged
+    markAsRead(announcementId);
+
     const updated = announcements.map((a) => {
       if (a.id === announcementId) {
         const isCurrent = a.user_acknowledged;
@@ -1156,6 +1181,85 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     return newEvent;
   };
 
+  // Sync read IDs whenever current user changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const userKey = currentUser ? currentUser.id : 'guest';
+    const stored = localStorage.getItem(`${STORAGE_KEYS.READ_PREFIX}${userKey}`);
+    if (stored) {
+      try {
+        setReadAnnouncementIds(JSON.parse(stored));
+      } catch (e) {
+        setReadAnnouncementIds([]);
+      }
+    } else {
+      setReadAnnouncementIds([]);
+    }
+  }, [currentUser]);
+
+  // Compute unread announcements for current user
+  const unreadAnnouncements = announcements.filter((a) => {
+    if (a.status !== 'PUBLISHED') return false;
+
+    // Check scheduled publish date
+    const publishTime = a.scheduled_at ? new Date(a.scheduled_at).getTime() : new Date(a.created_at).getTime();
+    if (publishTime > Date.now()) return false;
+
+    // Audience targeting
+    if (currentUser) {
+      if (a.target_type === 'DEPARTMENT' && a.target_value && a.target_value !== currentUser.department) {
+        return false;
+      }
+      if (a.target_type === 'LOCATION' && a.target_value && a.target_value !== currentUser.location) {
+        return false;
+      }
+    }
+
+    // If already acknowledged, it is noticed
+    const userAcked = acknowledgements[a.id]?.some((ack) => ack.userId === currentUser?.id) || a.user_acknowledged;
+    if (userAcked) return false;
+
+    // Is it in user's read list?
+    return !readAnnouncementIds.includes(a.id);
+  });
+
+  const unreadCount = unreadAnnouncements.length;
+
+  // Whenever unread count changes, update native mobile app icon badge via Badging API!
+  useEffect(() => {
+    updateAppBadge(unreadCount);
+  }, [unreadCount]);
+
+  const markAsRead = (announcementId: string) => {
+    setReadAnnouncementIds((prev) => {
+      if (prev.includes(announcementId)) return prev;
+      const next = [...prev, announcementId];
+      if (typeof window !== 'undefined') {
+        const userKey = currentUser ? currentUser.id : 'guest';
+        localStorage.setItem(`${STORAGE_KEYS.READ_PREFIX}${userKey}`, JSON.stringify(next));
+      }
+      return next;
+    });
+  };
+
+  const markAllAsRead = () => {
+    const allPublishedIds = announcements
+      .filter((a) => a.status === 'PUBLISHED')
+      .map((a) => a.id);
+    setReadAnnouncementIds(allPublishedIds);
+    if (typeof window !== 'undefined') {
+      const userKey = currentUser ? currentUser.id : 'guest';
+      localStorage.setItem(`${STORAGE_KEYS.READ_PREFIX}${userKey}`, JSON.stringify(allPublishedIds));
+    }
+    updateAppBadge(0);
+  };
+
+  const isAnnouncementRead = (announcementId: string): boolean => {
+    if (readAnnouncementIds.includes(announcementId)) return true;
+    if (currentUser && acknowledgements[announcementId]?.some((ack) => ack.userId === currentUser.id)) return true;
+    return false;
+  };
+
   return (
     <AnnouncementStoreContext.Provider
       value={{
@@ -1190,7 +1294,13 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
         updateAnnouncement,
         deleteAnnouncement,
         getAuditLogs,
-        addEvent
+        addEvent,
+        unreadCount,
+        unreadAnnouncements,
+        readAnnouncementIds,
+        markAsRead,
+        markAllAsRead,
+        isAnnouncementRead
       }}
     >
       {children}

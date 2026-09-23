@@ -21,7 +21,9 @@ import {
   getNotificationPermission,
   requestNotificationPermission,
   isNotificationSupported,
-  NotificationPermissionStatus
+  NotificationPermissionStatus,
+  updateAppBadge,
+  clearAppBadge
 } from '@/lib/notifications';
 import { useToast } from '@/components/ui/Toast';
 
@@ -623,6 +625,85 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
                   💡 Tip: Tap "Send Test Alert", then immediately lock your phone screen or go to home screen to test how the notification pops up!
                 </div>
               )}
+            </div>
+
+            {/* Native Mobile App Icon Badge Testing */}
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(220, 38, 38, 0.08) 100%)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)'
+                    }}
+                  >
+                    1
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b' }}>
+                    Home Screen Mobile Icon Red Badge
+                  </span>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#b91c1c' }}>
+                  Web Badging API
+                </span>
+              </div>
+              <p style={{ fontSize: 11, color: '#7f1d1d', margin: 0, lineHeight: 1.4 }}>
+                Tests the native red circle count badge displayed on your phone's home screen PWA icon for unread notices.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateAppBadge(1);
+                    showToast('🔴 Home screen app icon badge set to 1! Look at your phone home screen.', 'success');
+                  }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ padding: '4px 10px', fontSize: 11, background: '#ffffff' }}
+                >
+                  Set Badge: 1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateAppBadge(5);
+                    showToast('🔴 Home screen app icon badge set to 5! Look at your phone home screen.', 'success');
+                  }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ padding: '4px 10px', fontSize: 11, background: '#ffffff' }}
+                >
+                  Set Badge: 5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAppBadge();
+                    showToast('Cleared home screen app icon badge.', 'info');
+                  }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ padding: '4px 10px', fontSize: 11, background: '#ffffff', color: '#64748b' }}
+                >
+                  Clear Badge
+                </button>
+              </div>
             </div>
           </div>
         </div>
