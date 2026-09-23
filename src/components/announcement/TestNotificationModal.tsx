@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Bell,
   BellRing,
@@ -67,6 +68,23 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
     }
   }, [isOpen, announcement]);
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const orig = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = orig;
+      };
+    }
+  }, [isOpen]);
+
   // Clean up timer on unmount
   useEffect(() => {
     return () => {
@@ -76,7 +94,7 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
     };
   }, []);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const handleReset = () => {
     const urgent = announcement.priority === 'URGENT';
@@ -169,21 +187,28 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
     showToast('Test notification timer cancelled.', 'info');
   };
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       style={{
         position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-        backdropFilter: 'blur(6px)',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        backgroundColor: 'rgba(15, 23, 42, 0.7)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '16px',
-        animation: 'fadeIn 180ms ease'
+        animation: 'fadeIn 180ms ease',
+        boxSizing: 'border-box'
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget && countdown === null) {
@@ -789,6 +814,7 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

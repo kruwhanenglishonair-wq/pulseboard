@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { X, Download, CheckCircle2, Clock, ShieldCheck, Search } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
@@ -17,6 +18,16 @@ export const AuditLogModal: React.FC<AuditLogModalProps> = ({ announcement, onCl
   const { showToast } = useToast();
   const [filter, setFilter] = React.useState<'all' | 'acknowledged' | 'pending'>('all');
   const [search, setSearch] = React.useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const orig = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = orig;
+    };
+  }, []);
 
   const { records, rate, total, acknowledged } = getAuditLogs(announcement.id);
 
@@ -61,18 +72,27 @@ export const AuditLogModal: React.FC<AuditLogModalProps> = ({ announcement, onCl
     showToast('Compliance audit CSV exported successfully!', 'success');
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       style={{
         position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.75)',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        background: 'rgba(15, 23, 42, 0.75)',
         backdropFilter: 'blur(10px)',
-        zIndex: 1000,
+        WebkitBackdropFilter: 'blur(10px)',
+        zIndex: 99999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 20
+        padding: 20,
+        boxSizing: 'border-box'
       }}
     >
       <div
@@ -326,6 +346,7 @@ export const AuditLogModal: React.FC<AuditLogModalProps> = ({ announcement, onCl
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
