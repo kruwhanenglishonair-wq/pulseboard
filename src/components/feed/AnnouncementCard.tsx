@@ -154,8 +154,10 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement
         {/* Right Action Icons: Test Alert, Share & Bookmark */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button
+            type="button"
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               setShowTestModal(true);
             }}
             style={{

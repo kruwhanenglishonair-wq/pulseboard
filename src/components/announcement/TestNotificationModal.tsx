@@ -53,8 +53,28 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
   const [countdown, setCountdown] = useState<number | null>(null);
   const [permission, setPermission] = useState<NotificationPermissionStatus>('default');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [deviceStats, setDeviceStats] = useState<{ total: number; mobile: number } | null>(null);
 
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Fetch device stats when modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/push/subscribe')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setDeviceStats({ total: data.totalDevices, mobile: data.mobileDevices });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   // Sync state when announcement changes or modal opens
   useEffect(() => {
@@ -68,12 +88,6 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
       setPermission(getNotificationPermission());
     }
   }, [isOpen, announcement]);
-
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -95,8 +109,6 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
     };
   }, []);
 
-  if (!isOpen || !mounted) return null;
-
   const handleReset = () => {
     const urgent = announcement.priority === 'URGENT';
     setTitle(`${urgent ? '🚨 URGENT: ' : '📢 '}${announcement.title}`);
@@ -110,21 +122,6 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
     playNotificationSound(isUrgent);
     setTimeout(() => setIsPlayingAudio(false), 800);
   };
-
-  const [deviceStats, setDeviceStats] = useState<{ total: number; mobile: number } | null>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      fetch('/api/push/subscribe')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setDeviceStats({ total: data.totalDevices, mobile: data.mobileDevices });
-          }
-        })
-        .catch(() => {});
-    }
-  }, [isOpen]);
 
   const handleRequestPermission = async () => {
     const res = await requestNotificationPermission();
@@ -215,6 +212,8 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
     setCountdown(null);
     showToast('Test notification timer cancelled.', 'info');
   };
+
+  if (!isOpen || !mounted) return null;
 
   return createPortal(
     <div
