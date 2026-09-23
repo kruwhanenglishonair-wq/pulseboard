@@ -33,6 +33,7 @@ export const CalendarView = () => {
   // Default view is MONTHLY as requested
   const [viewMode, setViewMode] = useState<'MONTH' | 'AGENDA'>('MONTH');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
 
   // Modals
@@ -64,16 +65,31 @@ export const CalendarView = () => {
   const month = currentDate.getMonth();
 
   const handlePrevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
+    const prevDate = new Date(year, month - 1, 1);
+    setCurrentDate(prevDate);
+    setSelectedDate(prevDate);
   };
 
   const handleNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
+    const nextDate = new Date(year, month + 1, 1);
+    setCurrentDate(nextDate);
+    setSelectedDate(nextDate);
   };
 
   const handleToday = () => {
-    setCurrentDate(new Date());
+    const now = new Date();
+    setCurrentDate(now);
+    setSelectedDate(now);
   };
+
+  const selectedDateEvents = filteredEvents.filter((evt) => {
+    const evtDate = new Date(evt.start_time);
+    return (
+      evtDate.getFullYear() === selectedDate.getFullYear() &&
+      evtDate.getMonth() === selectedDate.getMonth() &&
+      evtDate.getDate() === selectedDate.getDate()
+    );
+  });
 
   const handleDownloadIcs = (event: CompanyEvent) => {
     downloadIcsFile(event);
@@ -230,7 +246,7 @@ export const CalendarView = () => {
   const monthName = currentDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 40, width: '100%', maxWidth: '100%' }}>
       {/* Top Header & Navigation Bar */}
       <div
         style={{
@@ -238,27 +254,28 @@ export const CalendarView = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: 16
+          gap: 12,
+          width: '100%'
         }}
       >
         <div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: 6 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: 4 }}>
             Company Calendar & Schedules
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
             Stay aligned with all-hands meetings, holidays, office closures, and compliance deadlines.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {/* View Mode Toggle: Monthly is Default */}
           <div
             style={{
               display: 'flex',
               background: '#f1f5f9',
-              padding: 4,
+              padding: 3,
               borderRadius: 10,
-              gap: 4
+              gap: 3
             }}
           >
             <button
@@ -266,12 +283,12 @@ export const CalendarView = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                borderRadius: 8,
+                gap: 5,
+                padding: '6px 12px',
+                borderRadius: 7,
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 700,
                 background: viewMode === 'MONTH' ? '#ffffff' : 'transparent',
                 color: viewMode === 'MONTH' ? 'var(--brand-primary)' : '#64748b',
@@ -279,8 +296,8 @@ export const CalendarView = () => {
                 transition: 'all 120ms ease'
               }}
             >
-              <CalendarDays size={16} />
-              <span>Month View</span>
+              <CalendarDays size={15} />
+              <span>Month</span>
             </button>
 
             <button
@@ -288,12 +305,12 @@ export const CalendarView = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                borderRadius: 8,
+                gap: 5,
+                padding: '6px 12px',
+                borderRadius: 7,
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 700,
                 background: viewMode === 'AGENDA' ? '#ffffff' : 'transparent',
                 color: viewMode === 'AGENDA' ? 'var(--brand-primary)' : '#64748b',
@@ -301,8 +318,8 @@ export const CalendarView = () => {
                 transition: 'all 120ms ease'
               }}
             >
-              <List size={16} />
-              <span>Agenda List</span>
+              <List size={15} />
+              <span>Agenda</span>
             </button>
           </div>
 
@@ -314,9 +331,9 @@ export const CalendarView = () => {
                 openAddModalForDate(now);
               }}
               className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 13 }}
             >
-              <Plus size={16} />
+              <Plus size={15} />
               <span>Add Event</span>
             </button>
           )}
@@ -327,82 +344,99 @@ export const CalendarView = () => {
       <div
         className="glass-panel"
         style={{
-          padding: '14px 18px',
+          padding: '12px 14px',
           borderRadius: 14,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
+          flexDirection: 'column',
+          gap: 12,
           background: '#ffffff',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.04)'
+          boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+          width: '100%',
+          boxSizing: 'border-box'
         }}
       >
-        {/* Month Navigator Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button
-              onClick={handlePrevMonth}
-              title="Previous Month"
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#334155',
-                transition: 'all 120ms ease'
-              }}
-            >
-              <ChevronLeft size={18} />
-            </button>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 10
+          }}
+        >
+          {/* Month Navigator Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button
+                onClick={handlePrevMonth}
+                title="Previous Month"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#334155'
+                }}
+              >
+                <ChevronLeft size={16} />
+              </button>
 
-            <button
-              onClick={handleNextMonth}
-              title="Next Month"
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#334155',
-                transition: 'all 120ms ease'
-              }}
-            >
-              <ChevronRight size={18} />
-            </button>
+              <button
+                onClick={handleNextMonth}
+                title="Next Month"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#334155'
+                }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
+              {monthName}
+            </h2>
           </div>
-
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', minWidth: 170 }}>
-            {monthName}
-          </h2>
 
           <button
             onClick={handleToday}
             className="btn btn-secondary btn-sm"
-            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 8 }}
+            style={{ padding: '5px 12px', fontSize: 12, borderRadius: 8 }}
           >
             Today
           </button>
         </div>
 
-        {/* Category Filter Pills */}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+        {/* Category Filter Pills (Smooth Mobile Horizontal Scroll) */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto',
+            paddingBottom: 2,
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none'
+          }}
+        >
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setFilterCategory(cat)}
               style={{
-                padding: '6px 14px',
+                padding: '5px 12px',
                 borderRadius: 20,
                 fontSize: 12,
                 fontWeight: filterCategory === cat ? 700 : 600,
@@ -411,6 +445,7 @@ export const CalendarView = () => {
                 border: filterCategory === cat ? '1px solid var(--brand-primary)' : '1px solid #e2e8f0',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
                 transition: 'all 120ms ease'
               }}
             >
@@ -421,22 +456,24 @@ export const CalendarView = () => {
       </div>
 
       {/* ============================================================== */}
-      {/* 1. MONTHLY CALENDAR GRID VIEW (DEFAULT)                         */}
+      {/* 1. MONTHLY CALENDAR GRID VIEW (100% MOBILE RESPONSIVE)          */}
       {/* ============================================================== */}
       {viewMode === 'MONTH' && (
-        <div
-          className="glass-panel"
-          style={{
-            background: '#ffffff',
-            borderRadius: 16,
-            overflow: 'hidden',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
-            overflowX: 'auto'
-          }}
-        >
-          <div style={{ minWidth: 700, width: '100%' }}>
-            {/* Weekday Names Header */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: '100%' }}>
+          {/* Calendar Grid Container (Fits 100% of mobile screen width) */}
+          <div
+            className="glass-panel"
+            style={{
+              background: '#ffffff',
+              borderRadius: 16,
+              overflow: 'hidden',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            {/* Weekday Names Header (Strictly 7 equal 1/7 columns) */}
             <div
               style={{
                 display: 'grid',
@@ -450,12 +487,12 @@ export const CalendarView = () => {
                 <div
                   key={day}
                   style={{
-                    padding: '12px 8px',
+                    padding: '10px 2px',
                     textAlign: 'center',
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: 700,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.04em',
                     color: idx === 0 || idx === 6 ? '#94a3b8' : '#475569',
                     minWidth: 0,
                     overflow: 'hidden'
@@ -466,7 +503,7 @@ export const CalendarView = () => {
               ))}
             </div>
 
-            {/* Days Grid */}
+            {/* Days Grid (Strictly 7 equal 1/7 columns) */}
             <div
               style={{
                 display: 'grid',
@@ -477,28 +514,38 @@ export const CalendarView = () => {
               }}
             >
               {calendarDays.map((cell, idx) => {
+                const isSelected =
+                  selectedDate.getFullYear() === cell.date.getFullYear() &&
+                  selectedDate.getMonth() === cell.date.getMonth() &&
+                  selectedDate.getDate() === cell.date.getDate();
+
                 return (
                   <div
                     key={idx}
+                    className="calendar-grid-cell"
                     onClick={() => {
-                      if (cell.isCurrentMonth) {
-                        openAddModalForDate(cell.date);
-                      }
+                      setSelectedDate(cell.date);
                     }}
                     style={{
-                      background: cell.isCurrentMonth ? '#ffffff' : '#f8fafc',
-                      minHeight: 110,
-                      padding: 8,
+                      background: isSelected
+                        ? '#eff6ff'
+                        : cell.isCurrentMonth
+                        ? '#ffffff'
+                        : '#f8fafc',
+                      padding: 6,
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'flex-start',
-                      cursor: cell.isCurrentMonth ? 'pointer' : 'default',
+                      alignItems: 'center',
+                      cursor: 'pointer',
                       opacity: cell.isCurrentMonth ? 1 : 0.45,
-                      transition: 'background 120ms ease',
+                      transition: 'all 120ms ease',
                       minWidth: 0,
                       width: '100%',
                       boxSizing: 'border-box',
-                      overflow: 'hidden'
+                      overflow: 'hidden',
+                      position: 'relative',
+                      boxShadow: isSelected ? 'inset 0 0 0 2px var(--brand-primary)' : 'none'
                     }}
                   >
                     {/* Date Number Header */}
@@ -506,51 +553,83 @@ export const CalendarView = () => {
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: 6,
+                        justifyContent: 'center',
+                        marginBottom: 4,
                         minWidth: 0,
                         width: '100%'
                       }}
                     >
                       <span
                         style={{
-                          width: 26,
-                          height: 26,
+                          width: 24,
+                          height: 24,
                           borderRadius: '50%',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: 12,
-                          fontWeight: cell.isToday ? 800 : 600,
-                          background: cell.isToday ? 'var(--brand-primary)' : 'transparent',
-                          color: cell.isToday ? '#ffffff' : '#1e293b',
+                          fontWeight: cell.isToday ? 800 : isSelected ? 700 : 600,
+                          background: cell.isToday
+                            ? 'var(--brand-primary)'
+                            : isSelected
+                            ? '#dbeafe'
+                            : 'transparent',
+                          color: cell.isToday
+                            ? '#ffffff'
+                            : isSelected
+                            ? '#1d4ed8'
+                            : '#1e293b',
                           flexShrink: 0
                         }}
                       >
                         {cell.dayNumber}
                       </span>
-
-                      {cell.events.length > 0 && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: '#64748b',
-                            flexShrink: 0,
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {cell.events.length} {cell.events.length === 1 ? 'event' : 'events'}
-                        </span>
-                      )}
                     </div>
 
-                    {/* Scheduled Events on this day */}
+                    {/* Mobile View: Event Indicator Dots (Fits 100% on phone screens) */}
+                    {cell.events.length > 0 && (
+                      <div
+                        className="calendar-events-mobile"
+                        style={{
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 3,
+                          marginTop: 2,
+                          width: '100%',
+                          minHeight: 8
+                        }}
+                      >
+                        {cell.events.slice(0, 3).map((evt) => {
+                          const styles = getCategoryStyles(evt.category);
+                          return (
+                            <span
+                              key={evt.id}
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: '50%',
+                                background: styles.dot,
+                                display: 'inline-block',
+                                flexShrink: 0
+                              }}
+                              title={evt.title}
+                            />
+                          );
+                        })}
+                        {cell.events.length > 3 && (
+                          <span style={{ fontSize: 9, fontWeight: 800, color: '#64748b' }}>
+                            +
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Desktop View: Full Event Badges with Text & Ellipsis */}
                     <div
+                      className="calendar-events-desktop"
                       style={{
-                        display: 'flex',
                         flexDirection: 'column',
-                        gap: 4,
+                        gap: 3,
                         minWidth: 0,
                         width: '100%',
                         overflow: 'hidden'
@@ -568,8 +647,8 @@ export const CalendarView = () => {
                               setSelectedEvent(evt);
                             }}
                             style={{
-                              padding: '3px 6px',
-                              borderRadius: 6,
+                              padding: '2px 5px',
+                              borderRadius: 5,
                               background: styles.bg,
                               borderLeft: `3px solid ${styles.dot}`,
                               color: styles.color,
@@ -612,7 +691,7 @@ export const CalendarView = () => {
                             fontWeight: 700,
                             color: '#64748b',
                             paddingLeft: 4,
-                            marginTop: 2,
+                            marginTop: 1,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
@@ -626,6 +705,177 @@ export const CalendarView = () => {
                 );
               })}
             </div>
+          </div>
+
+          {/* Selected Date Schedule Inspector Card (Mobile-First Day Detail) */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '16px 18px',
+              borderRadius: 16,
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 10,
+                marginBottom: 14,
+                paddingBottom: 12,
+                borderBottom: '1px solid #f1f5f9'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: '#eff6ff',
+                    color: 'var(--brand-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                >
+                  <CalendarDays size={18} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>
+                      {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    </h3>
+                    {today.getFullYear() === selectedDate.getFullYear() &&
+                      today.getMonth() === selectedDate.getMonth() &&
+                      today.getDate() === selectedDate.getDate() && (
+                        <span style={{ fontSize: 11, fontWeight: 700, background: '#e0e7ff', color: '#4338ca', padding: '2px 8px', borderRadius: 10 }}>
+                          Today
+                        </span>
+                      )}
+                  </div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {selectedDateEvents.length} {selectedDateEvents.length === 1 ? 'event scheduled' : 'events scheduled'}
+                  </p>
+                </div>
+              </div>
+
+              {isAdmin && (
+                <button
+                  onClick={() => openAddModalForDate(selectedDate)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+                >
+                  <Plus size={14} />
+                  <span>Add for This Day</span>
+                </button>
+              )}
+            </div>
+
+            {selectedDateEvents.length === 0 ? (
+              <div
+                style={{
+                  padding: '24px 16px',
+                  textAlign: 'center',
+                  background: '#f8fafc',
+                  borderRadius: 12,
+                  border: '1px dashed #cbd5e1',
+                  color: 'var(--text-muted)',
+                  fontSize: 13
+                }}
+              >
+                No events scheduled on this date. Tap any date with color dots to view its schedule.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {selectedDateEvents.map((evt) => {
+                  const startDate = new Date(evt.start_time);
+                  const endDate = new Date(evt.end_time);
+
+                  return (
+                    <div
+                      key={evt.id}
+                      onClick={() => setSelectedEvent(evt)}
+                      style={{
+                        padding: '12px 14px',
+                        background: '#f8fafc',
+                        borderRadius: 12,
+                        border: '1px solid #e2e8f0',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        transition: 'all 120ms ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                        {getCategoryBadge(evt.category)}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--brand-primary)', fontWeight: 700 }}>
+                          <Clock size={13} />
+                          <span>
+                            {evt.is_all_day
+                              ? 'All-Day'
+                              : `${startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>
+                          {evt.title}
+                        </h4>
+                        {evt.description && (
+                          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4, margin: '2px 0 6px 0' }}>
+                            {evt.description}
+                          </p>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-muted)' }}>
+                          <MapPin size={12} />
+                          <span>{evt.location}</span>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          paddingTop: 8,
+                          borderTop: '1px solid #e2e8f0'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => handleDownloadIcs(evt)}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 10px', fontSize: 11, gap: 4 }}
+                        >
+                          <Download size={12} />
+                          <span>Save .ics</span>
+                        </button>
+                        <a
+                          href={getGoogleCalendarUrl(evt)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 10px', fontSize: 11, gap: 4 }}
+                        >
+                          <ExternalLink size={12} />
+                          <span>Google Cal</span>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
