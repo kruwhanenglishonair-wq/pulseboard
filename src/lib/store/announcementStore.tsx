@@ -1225,12 +1225,12 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
 
   const unreadCount = unreadAnnouncements.length;
 
-  // Auto-register device with Web Push server if permission is granted (enables cross-device PC -> Mobile alerts)
+  // Auto-register device with Web Push & Supabase if permission is granted (enables cross-device PC -> Mobile alerts)
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       registerPushSubscription().catch(() => {});
     }
-  }, []);
+  }, [isSupabaseLive, currentUser]);
 
   // Whenever unread count changes or app regains focus/visibility, sync native mobile app icon badge!
   useEffect(() => {

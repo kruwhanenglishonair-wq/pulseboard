@@ -1,5 +1,5 @@
-// Powerhouse Service Worker v6 with Hardened Navigation & Cloud Push Handlers
-const CACHE_NAME = 'powerhouse-v6';
+// Powerhouse Service Worker v7 with Direct Push & Mobile Home Screen Badging
+const CACHE_NAME = 'powerhouse-v7';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -172,8 +172,16 @@ self.addEventListener('push', (event) => {
     badge: '/favicon-96x96.png',
     vibrate: isUrgent ? [300, 100, 300, 100, 300] : [200, 100, 200],
     tag: data.tag || `powerhouse-${Date.now()}`,
+    renotify: true,
+    requireInteraction: isUrgent,
+    actions: [{ action: 'open', title: '👀 View Notice' }],
     data: { url: data.url || '/' }
   };
+
+  // Sync mobile home screen app icon badge
+  if ('setAppBadge' in self.navigator) {
+    self.navigator.setAppBadge().catch(() => {});
+  }
 
   event.waitUntil(self.registration.showNotification(data.title, options));
 });

@@ -9,6 +9,8 @@ import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from '@/lib/pushConfig';
 
 const NOTIFIED_STORAGE_KEY = 'powerhouse_notified_announcements_v1';
 
+import { getSupabaseClient, getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
+
 export type NotificationPermissionStatus = 'granted' | 'denied' | 'default' | 'unsupported';
 
 /**
@@ -27,7 +29,46 @@ export const getNotificationPermission = (): NotificationPermissionStatus => {
 };
 
 /**
- * Register current device with the Web Push Server
+ * Helper to safely extract subscription JSON with keys
+ */
+const serializePushSubscription = (sub: PushSubscription): { endpoint: string; keys: { p256dh: string; auth: string } } | null => {
+  try {
+    const json = sub.toJSON();
+    if (json.endpoint && json.keys && json.keys.p256dh && json.keys.auth) {
+      return {
+        endpoint: json.endpoint,
+        keys: {
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth
+        }
+      };
+    }
+
+    // Fallback extraction via getKey
+    const p256dhRaw = sub.getKey ? sub.getKey('p256dh') : null;
+    const authRaw = sub.getKey ? sub.getKey('auth') : null;
+
+    const p256dh = p256dhRaw
+      ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(p256dhRaw))))
+      : json.keys?.p256dh || '';
+    const auth = authRaw
+      ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(authRaw))))
+      : json.keys?.auth || '';
+
+    if (sub.endpoint && p256dh && auth) {
+      return {
+        endpoint: sub.endpoint,
+        keys: { p256dh, auth }
+      };
+    }
+  } catch (err) {
+    console.warn('[Push Client] Error serializing push subscription:', err);
+  }
+  return null;
+};
+
+/**
+ * Register current device with the Web Push Server & Supabase Database
  * Enables receiving notifications sent from PC or other devices even when closed!
  */
 export const registerPushSubscription = async (): Promise<boolean> => {
@@ -54,18 +95,58 @@ export const registerPushSubscription = async (): Promise<boolean> => {
     }
 
     if (sub) {
+      const serialized = serializePushSubscription(sub);
+      if (!serialized) {
+        console.warn('[Push Client] Failed to serialize PushSubscription keys');
+        return false;
+      }
+
       const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const supabaseUrl = getSupabaseUrl();
+      const supabaseAnonKey = getSupabaseAnonKey();
+
+      // 1. Direct Supabase database persist (Client-side guarantees cross-device sync)
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          const { error: dbErr } = await supabase.from('push_subscriptions').upsert(
+            {
+              endpoint: serialized.endpoint,
+              keys: serialized.keys,
+              user_agent: navigator.userAgent,
+              is_mobile: isMobile,
+              updated_at: new Date().toISOString()
+            },
+            { onConflict: 'endpoint' }
+          );
+
+          if (dbErr) {
+            console.warn('[Push Client] Direct Supabase upsert error:', dbErr.message);
+          } else {
+            console.log(`[Push Client] Saved push subscription to Supabase (${isMobile ? 'Mobile' : 'Desktop'})`);
+          }
+        } catch (dbEx) {
+          console.warn('[Push Client] Supabase upsert exception:', dbEx);
+        }
+      }
+
+      // 2. Also register with server route /api/push/subscribe
       await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          subscription: sub,
+          subscription: serialized,
           deviceInfo: {
             userAgent: navigator.userAgent,
             isMobile
+          },
+          supabaseConfig: {
+            url: supabaseUrl,
+            anonKey: supabaseAnonKey
           }
         })
       });
+
       console.log(`[Push Client] Registered push subscription (${isMobile ? 'Mobile' : 'Desktop'})`);
       return true;
     }
@@ -73,6 +154,33 @@ export const registerPushSubscription = async (): Promise<boolean> => {
     console.warn('[Push Client] Failed to register push subscription:', err);
   }
   return false;
+};
+
+/**
+ * Query active push devices count directly from Supabase / server
+ */
+export const getPushDeviceStats = async (): Promise<{ total: number; mobile: number }> => {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('push_subscriptions').select('endpoint, is_mobile');
+      if (!error && Array.isArray(data)) {
+        const mobileCount = data.filter((d: any) => d.is_mobile).length;
+        return { total: data.length, mobile: mobileCount };
+      }
+    } catch (e) {}
+  }
+
+  // Fallback to server route
+  try {
+    const res = await fetch('/api/push/subscribe');
+    const data = await res.json();
+    if (data.success) {
+      return { total: data.totalDevices || 0, mobile: data.mobileDevices || 0 };
+    }
+  } catch (e) {}
+
+  return { total: 0, mobile: 0 };
 };
 
 /**
@@ -88,6 +196,23 @@ export const sendPushNotificationToAllDevices = async (
   } = {}
 ): Promise<{ success: boolean; sentCount: number; mobileDevices: number; message: string }> => {
   try {
+    // 1. Fetch all active subscriptions from Supabase directly so serverless statelessness never drops devices!
+    let dbSubscriptions: any[] = [];
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('push_subscriptions').select('*');
+        if (!error && Array.isArray(data)) {
+          dbSubscriptions = data;
+        }
+      } catch (err) {
+        console.warn('[Push Client] Failed fetching subscriptions from Supabase:', err);
+      }
+    }
+
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseAnonKey = getSupabaseAnonKey();
+
     const res = await fetch('/api/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -96,7 +221,12 @@ export const sendPushNotificationToAllDevices = async (
         body: options.body || '',
         url: options.url || '/',
         tag: options.tag || `push-${Date.now()}`,
-        isUrgent: options.isUrgent ?? false
+        isUrgent: options.isUrgent ?? false,
+        subscriptions: dbSubscriptions, // Passed directly from Supabase
+        supabaseConfig: {
+          url: supabaseUrl,
+          anonKey: supabaseAnonKey
+        }
       })
     });
     const data = await res.json();

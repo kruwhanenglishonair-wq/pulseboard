@@ -97,7 +97,16 @@ export async function POST(req: NextRequest) {
     persistMemoryStore();
 
     // 2. Also attempt saving to Supabase if available
-    const supabase = getServerSupabase();
+    let supabase = getServerSupabase();
+    if (!supabase && body.supabaseConfig?.url && body.supabaseConfig?.anonKey) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        supabase = createClient(body.supabaseConfig.url, body.supabaseConfig.anonKey, {
+          auth: { persistSession: false }
+        });
+      } catch (e) {}
+    }
+
     if (supabase) {
       try {
         await supabase.from('push_subscriptions').upsert(
@@ -112,7 +121,7 @@ export async function POST(req: NextRequest) {
           { onConflict: 'endpoint' }
         );
       } catch (dbErr) {
-        // Table may not exist yet, cache is primary
+        // Table may not exist yet or permissions error
       }
     }
 

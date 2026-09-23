@@ -13,7 +13,10 @@ import {
   RotateCcw,
   AlertTriangle,
   Send,
-  Sparkles
+  Sparkles,
+  Info,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Announcement } from '@/lib/types';
 import {
@@ -25,7 +28,9 @@ import {
   NotificationPermissionStatus,
   updateAppBadge,
   clearAppBadge,
-  sendPushNotificationToAllDevices
+  sendPushNotificationToAllDevices,
+  getPushDeviceStats,
+  registerPushSubscription
 } from '@/lib/notifications';
 import { useToast } from '@/components/ui/Toast';
 
@@ -55,6 +60,8 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [deviceStats, setDeviceStats] = useState<{ total: number; mobile: number } | null>(null);
+  const [showPhoneTips, setShowPhoneTips] = useState(false);
+  const [isRegisteringDevice, setIsRegisteringDevice] = useState(false);
 
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -62,15 +69,12 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
     setMounted(true);
   }, []);
 
-  // Fetch device stats when modal is opened
+  // Fetch device stats directly from Supabase / server when modal is opened
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/push/subscribe')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setDeviceStats({ total: data.totalDevices, mobile: data.mobileDevices });
-          }
+      getPushDeviceStats()
+        .then((stats) => {
+          setDeviceStats(stats);
         })
         .catch(() => {});
     }
@@ -372,55 +376,160 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
           {/* Cloud Push Device Status Callout (PC -> Mobile) */}
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 14px',
-              borderRadius: 12,
+              padding: '12px 14px',
+              borderRadius: 14,
               background: deviceStats && deviceStats.mobile > 0 ? '#ecfdf5' : '#f0f9ff',
               border: `1px solid ${deviceStats && deviceStats.mobile > 0 ? '#a7f3d0' : '#bae6fd'}`,
-              fontSize: 12,
-              gap: 8,
-              flexWrap: 'wrap'
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Smartphone size={16} color={deviceStats && deviceStats.mobile > 0 ? '#059669' : '#0284c7'} />
-              <div>
-                <div style={{ fontWeight: 700, color: deviceStats && deviceStats.mobile > 0 ? '#065f46' : '#0369a1' }}>
-                  {deviceStats && deviceStats.mobile > 0
-                    ? `📱 ${deviceStats.mobile} Mobile Phone(s) Connected for Push`
-                    : '📱 Cross-Device Push (PC → Mobile)'}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: deviceStats && deviceStats.mobile > 0 ? '#d1fae5' : '#e0f2fe',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Smartphone size={18} color={deviceStats && deviceStats.mobile > 0 ? '#059669' : '#0284c7'} />
                 </div>
-                <div style={{ fontSize: 11, color: deviceStats && deviceStats.mobile > 0 ? '#047857' : '#0c4a6e' }}>
-                  {deviceStats && deviceStats.mobile > 0
-                    ? 'Triggering this alert will send a Web Push notification to your connected mobile phone!'
-                    : 'To get alerts on your phone when clicking on PC: Open Powerhouse on your phone once & tap "Set Badge" or "Turn On Alerts".'}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: deviceStats && deviceStats.mobile > 0 ? '#065f46' : '#0369a1' }}>
+                    {deviceStats && deviceStats.mobile > 0
+                      ? `📱 ${deviceStats.mobile} Mobile Phone(s) Connected for Cloud Push`
+                      : '📱 Cross-Device Push (PC → Mobile)'}
+                  </div>
+                  <div style={{ fontSize: 11, color: deviceStats && deviceStats.mobile > 0 ? '#047857' : '#0c4a6e', marginTop: 1 }}>
+                    {deviceStats && deviceStats.mobile > 0
+                      ? 'Web Push is active via Google FCM. Alerts will deliver directly to your phone even when closed.'
+                      : 'To receive alerts on your phone while the app is closed: Open Powerhouse on your phone once & tap "Register Device".'}
+                  </div>
                 </div>
               </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsRegisteringDevice(true);
+                    try {
+                      if (isNotificationSupported() && Notification.permission !== 'granted') {
+                        await requestNotificationPermission();
+                      }
+                      const ok = await registerPushSubscription();
+                      const stats = await getPushDeviceStats();
+                      setDeviceStats(stats);
+                      if (ok) {
+                        showToast('✅ This device is now registered in Supabase for Cloud Push!', 'success');
+                      } else {
+                        showToast('Notification permission or service worker needed to register.', 'info');
+                      }
+                    } catch (e) {
+                      showToast('Registration failed.', 'error');
+                    } finally {
+                      setIsRegisteringDevice(false);
+                    }
+                  }}
+                  disabled={isRegisteringDevice}
+                  style={{
+                    fontSize: 11,
+                    padding: '5px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    cursor: 'pointer',
+                    color: '#1e293b',
+                    fontWeight: 600
+                  }}
+                >
+                  {isRegisteringDevice ? 'Registering...' : '📲 Register This Device'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const stats = await getPushDeviceStats();
+                    setDeviceStats(stats);
+                    showToast(`📡 Database: ${stats.mobile} mobile phone(s), ${stats.total} total connected`, 'info');
+                  }}
+                  style={{
+                    fontSize: 11,
+                    padding: '5px 8px',
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    cursor: 'pointer',
+                    color: '#475569',
+                    fontWeight: 600
+                  }}
+                  title="Check connected devices in Supabase"
+                >
+                  🔄
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                const res = await fetch('/api/push/subscribe').then((r) => r.json()).catch(() => ({}));
-                if (res.success) {
-                  setDeviceStats({ total: res.totalDevices, mobile: res.mobileDevices });
-                  showToast(`📡 Connected devices: ${res.mobileDevices} mobile, ${res.totalDevices} total`, 'info');
-                }
-              }}
-              style={{
-                fontSize: 11,
-                padding: '4px 8px',
-                borderRadius: 6,
-                border: '1px solid rgba(0,0,0,0.1)',
-                background: '#ffffff',
-                cursor: 'pointer',
-                color: '#475569',
-                fontWeight: 600
-              }}
-            >
-              🔄 Refresh
-            </button>
+
+            {/* Collapsible Mobile Lock Screen Guide (Specifically for Xiaomi MIUI / HyperOS / Android) */}
+            <div style={{ borderTop: '1px dashed rgba(0,0,0,0.1)', paddingTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => setShowPhoneTips(!showPhoneTips)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: deviceStats && deviceStats.mobile > 0 ? '#047857' : '#0284c7'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Info size={13} />
+                  <span>Important for Xiaomi & Android: How to receive alerts when phone is locked</span>
+                </span>
+                {showPhoneTips ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {showPhoneTips && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    background: '#ffffff',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    fontSize: 11,
+                    color: '#334155',
+                    lineHeight: 1.5
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
+                    🔋 Xiaomi (MIUI / HyperOS) Background Alert Setting:
+                  </div>
+                  <p style={{ margin: '0 0 6px 0' }}>
+                    By default, Xiaomi aggressively pauses background tasks when the phone is locked. To allow notifications while the app is closed:
+                  </p>
+                  <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <li>Long-press the <strong>Powerhouse</strong> icon on your phone &gt; tap <strong>App info</strong>.</li>
+                    <li>Tap <strong>Battery saver</strong> &gt; Select <strong>No restrictions</strong> (prevents Xiaomi from sleeping push sync).</li>
+                    <li>Tap <strong>Autostart</strong> &gt; Toggle to <strong>Allow</strong>.</li>
+                    <li>In <strong>Notifications</strong> &gt; ensure <strong>Floating notifications</strong> &amp; <strong>Lock screen notifications</strong> are turned <strong>ON</strong>.</li>
+                  </ol>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Live Mobile Lock Screen Preview Card */}

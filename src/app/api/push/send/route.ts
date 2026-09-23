@@ -13,6 +13,11 @@ interface PushPayload {
   url?: string;
   tag?: string;
   isUrgent?: boolean;
+  subscriptions?: any[];
+  supabaseConfig?: {
+    url?: string;
+    anonKey?: string;
+  };
 }
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -28,12 +33,23 @@ export async function POST(req: NextRequest) {
     // 1. Gather all active subscriptions
     const subscriptionsMap = new Map<string, any>();
 
-    // From global memory cache / file
+    // A. Subscriptions provided directly in request payload (e.g. from client Supabase query)
+    if (payload.subscriptions && Array.isArray(payload.subscriptions)) {
+      payload.subscriptions.forEach((sub: any) => {
+        if (sub && sub.endpoint) {
+          subscriptionsMap.set(sub.endpoint, sub);
+        }
+      });
+    }
+
+    // B. From global memory cache / file
     try {
       const memoryStore = (globalThis as any)._powerhousePushSubscriptions;
       if (memoryStore) {
         memoryStore.forEach((sub: any, endpoint: string) => {
-          subscriptionsMap.set(endpoint, sub);
+          if (!subscriptionsMap.has(endpoint)) {
+            subscriptionsMap.set(endpoint, sub);
+          }
         });
       }
 
@@ -49,8 +65,17 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {}
 
-    // Also fetch from Supabase if configured
-    const supabase = getServerSupabase();
+    // C. Also fetch from Supabase if configured (via server env or dynamic payload config)
+    let supabase = getServerSupabase();
+    if (!supabase && payload.supabaseConfig?.url && payload.supabaseConfig?.anonKey) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        supabase = createClient(payload.supabaseConfig.url, payload.supabaseConfig.anonKey, {
+          auth: { persistSession: false }
+        });
+      } catch (e) {}
+    }
+
     if (supabase) {
       try {
         const { data } = await supabase.from('push_subscriptions').select('*');
@@ -86,24 +111,39 @@ export async function POST(req: NextRequest) {
 
     // Send push to each subscribed device in parallel
     const pushPromises = subscriptions.map(async (sub) => {
+      let p256dh = sub.keys?.p256dh;
+      let auth = sub.keys?.auth;
+      if (typeof sub.keys === 'string') {
+        try {
+          const parsed = JSON.parse(sub.keys);
+          p256dh = parsed.p256dh;
+          auth = parsed.auth;
+        } catch (e) {}
+      }
+
+      if (!sub.endpoint || !p256dh || !auth) {
+        failedCount++;
+        console.warn(`[Web Push Skip] Invalid subscription keys for endpoint:`, sub.endpoint);
+        return;
+      }
+
       const pushSubscription = {
         endpoint: sub.endpoint,
-        keys: {
-          p256dh: sub.keys?.p256dh,
-          auth: sub.keys?.auth
-        }
+        keys: { p256dh, auth }
       };
 
       try {
         await webpush.sendNotification(pushSubscription, notificationPayload);
         sentCount++;
+        console.log(`[Web Push Success] Delivered to FCM: ${sub.endpoint.slice(0, 45)}... (Mobile: ${Boolean(sub.is_mobile || sub.isMobile)})`);
       } catch (err: any) {
         failedCount++;
-        // If expired or unregistered, mark for deletion
+        // If expired or unregistered (410 Gone / 404 Not Found), mark for deletion
         if (err.statusCode === 410 || err.statusCode === 404) {
           expiredEndpoints.push(sub.endpoint);
+          console.log(`[Web Push Expired] Subscription expired (HTTP ${err.statusCode}), queueing removal: ${sub.endpoint.slice(0, 30)}...`);
         } else {
-          console.warn(`[Web Push Error] ${sub.endpoint.slice(0, 30)}:`, err.message || err);
+          console.warn(`[Web Push Error] ${sub.endpoint.slice(0, 30)}: HTTP ${err.statusCode || 'ERR'} - ${err.message || err}`);
         }
       }
     });
@@ -130,7 +170,7 @@ export async function POST(req: NextRequest) {
       sentCount,
       failedCount,
       totalDevices: subscriptions.length,
-      mobileDevices: subscriptions.filter((s) => s.isMobile).length,
+      mobileDevices: subscriptions.filter((s) => s.isMobile || s.is_mobile).length,
       message: `Push alert dispatched to ${sentCount} device(s)!`
     });
   } catch (err: any) {
