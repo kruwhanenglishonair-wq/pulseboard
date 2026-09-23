@@ -1,5 +1,5 @@
-// Powerhouse Service Worker v5 with Push, Badging & Scheduled Notification Handlers
-const CACHE_NAME = 'powerhouse-v5';
+// Powerhouse Service Worker v6 with Hardened Navigation & Cloud Push Handlers
+const CACHE_NAME = 'powerhouse-v6';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -44,26 +44,65 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Network-first for manifests, icons, and API calls to guarantee fresh branding
-  if (url.pathname.startsWith('/api/') || url.pathname.includes('manifest') || url.pathname.includes('apple-touch-icon')) {
+  // Ignore non-http / non-https schemes (e.g. chrome-extension://)
+  if (!url.protocol.startsWith('http')) return;
+
+  // Ignore cross-origin requests
+  if (url.origin !== self.location.origin) return;
+
+  // 1. Network-first for API routes, manifests, and icons
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.includes('manifest') ||
+    url.pathname.includes('apple-touch-icon')
+  ) {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match(event.request).then((cached) => {
-          if (cached) return cached;
-          if (url.pathname.startsWith('/api/')) {
-            return new Response(JSON.stringify({ error: 'Offline mode active' }), {
-              headers: { 'Content-Type': 'application/json' },
-              status: 503
-            });
-          }
-          return new Response('', { status: 404 });
-        });
+      fetch(event.request).catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (url.pathname.startsWith('/api/')) {
+          return new Response(JSON.stringify({ error: 'Offline mode active' }), {
+            headers: { 'Content-Type': 'application/json' },
+            status: 503
+          });
+        }
+        return new Response('', { status: 404 });
       })
     );
     return;
   }
 
-  // Stale-while-revalidate for page navigations & static assets
+  // 2. Network-first for HTML page navigation requests (clicking links, opening pages, notification click)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          // If offline or network error, fallback to cached page or cached root '/'
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          const rootCached = await caches.match('/');
+          if (rootCached) return rootCached;
+
+          // Never resolve with undefined! Return fallback HTML so Chrome NEVER crashes with "This page couldn't load"
+          return new Response(
+            '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Powerhouse</title><style>body{font-family:system-ui,sans-serif;text-align:center;padding:48px 20px;color:#1e293b}a{display:inline-block;margin-top:16px;padding:10px 20px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:10px;font-weight:600}</style></head><body><h2>Connecting to Powerhouse...</h2><p>Please check your internet connection and reload.</p><a href="/">Return to Home Feed</a></body></html>',
+            { headers: { 'Content-Type': 'text/html' } }
+          );
+        })
+    );
+    return;
+  }
+
+  // 3. Stale-while-revalidate for static assets (js, css, images)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
@@ -76,7 +115,7 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        .catch(() => cachedResponse || new Response('', { status: 404 }));
 
       return cachedResponse || fetchPromise;
     })
@@ -90,15 +129,22 @@ self.addEventListener('fetch', (event) => {
 // Handle click on mobile notifications to focus or open the target announcement
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const rawUrl = event.notification.data?.url || '/';
+  // Ensure the target URL is ALWAYS an absolute URL based on the current origin!
+  const targetUrl = new URL(rawUrl, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // 1. If an existing window/tab of Powerhouse is open, navigate and focus it
       for (const client of windowClients) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
+        if ('focus' in client) {
+          if ('navigate' in client) {
+            client.navigate(targetUrl);
+          }
           return client.focus();
         }
       }
+      // 2. Otherwise open a new standalone window with the full absolute URL
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }
@@ -119,11 +165,12 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const isUrgent = data.isUrgent || data.title?.includes('🚨');
   const options = {
     body: data.body,
     icon: '/web-app-manifest-192x192.png',
     badge: '/favicon-96x96.png',
-    vibrate: [200, 100, 200],
+    vibrate: isUrgent ? [300, 100, 300, 100, 300] : [200, 100, 200],
     tag: data.tag || `powerhouse-${Date.now()}`,
     data: { url: data.url || '/' }
   };

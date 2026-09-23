@@ -1,9 +1,9 @@
 'use client';
 
-import React, { use } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft,
   Calendar,
@@ -25,14 +25,15 @@ import { CommentSection } from '@/components/announcement/CommentSection';
 import { TestNotificationModal } from '@/components/announcement/TestNotificationModal';
 import { useToast } from '@/components/ui/Toast';
 
-export default function AnnouncementDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+export default function AnnouncementDetailPage() {
   const router = useRouter();
+  const params = useParams();
+  const rawId = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : '';
   const { announcements, toggleBookmark, currentUser, markAsRead } = useAnnouncementStore();
   const { showToast } = useToast();
   const [showTestModal, setShowTestModal] = React.useState(false);
 
-  const announcement = announcements.find((a) => a.id === resolvedParams.id);
+  const announcement = announcements.find((a) => a.id === rawId);
 
   // Mark announcement as read when viewed
   React.useEffect(() => {
