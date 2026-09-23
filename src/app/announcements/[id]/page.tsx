@@ -15,12 +15,14 @@ import {
   Download,
   Building2,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Bell
 } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 import { AcknowledgeButton } from '@/components/announcement/AcknowledgeButton';
 import { ReactionBar } from '@/components/announcement/ReactionBar';
 import { CommentSection } from '@/components/announcement/CommentSection';
+import { TestNotificationModal } from '@/components/announcement/TestNotificationModal';
 import { useToast } from '@/components/ui/Toast';
 
 export default function AnnouncementDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,6 +30,7 @@ export default function AnnouncementDetailPage({ params }: { params: Promise<{ i
   const router = useRouter();
   const { announcements, toggleBookmark, currentUser } = useAnnouncementStore();
   const { showToast } = useToast();
+  const [showTestModal, setShowTestModal] = React.useState(false);
 
   const announcement = announcements.find((a) => a.id === resolvedParams.id);
 
@@ -163,7 +166,22 @@ export default function AnnouncementDetailPage({ params }: { params: Promise<{ i
           <span>Back to Feed</span>
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setShowTestModal(true)}
+            className="btn btn-secondary btn-sm"
+            style={{
+              gap: 6,
+              background: 'rgba(99, 102, 241, 0.08)',
+              color: 'var(--brand-primary)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              fontWeight: 600
+            }}
+            title="Test Mobile Alert & Customize"
+          >
+            <Bell size={14} />
+            <span>Test Alert</span>
+          </button>
           <button
             onClick={handleShare}
             className="btn btn-secondary btn-sm"
@@ -321,6 +339,56 @@ export default function AnnouncementDetailPage({ params }: { params: Promise<{ i
           />
         )}
 
+        {/* Mobile Alert Test Bar on Ticket */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-md)',
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%)',
+            border: '1px solid rgba(99, 102, 241, 0.18)',
+            margin: '20px 0',
+            flexWrap: 'wrap',
+            gap: 10
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: 'rgba(99, 102, 241, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--brand-primary)'
+              }}
+            >
+              <Bell size={16} />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Test Mobile Alert for this Ticket
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                Preview lock screen notification, edit title/body & trigger phone alert chime
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowTestModal(true)}
+            className="btn btn-primary btn-sm"
+            style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, gap: 6, fontWeight: 600 }}
+          >
+            <Bell size={13} />
+            <span>Customize & Test Alert</span>
+          </button>
+        </div>
+
         {/* Post Content */}
         <div style={{ margin: '24px 0', fontSize: 15, lineHeight: 1.7 }}>
           {renderMarkdown(announcement.content)}
@@ -385,6 +453,13 @@ export default function AnnouncementDetailPage({ params }: { params: Promise<{ i
           allowComments={announcement.allow_comments}
         />
       </article>
+
+      {/* Test Mobile Alert & Customization Modal */}
+      <TestNotificationModal
+        announcement={announcement}
+        isOpen={showTestModal}
+        onClose={() => setShowTestModal(false)}
+      />
     </div>
   );
 }

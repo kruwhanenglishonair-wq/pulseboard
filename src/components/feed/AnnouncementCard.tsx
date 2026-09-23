@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -12,11 +12,13 @@ import {
   AlertCircle,
   FileText,
   Building2,
-  Share2
+  Share2,
+  Bell
 } from 'lucide-react';
 import { Announcement } from '@/lib/types';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 import { useToast } from '@/components/ui/Toast';
+import { TestNotificationModal } from '@/components/announcement/TestNotificationModal';
 
 interface AnnouncementCardProps {
   announcement: Announcement;
@@ -25,6 +27,7 @@ interface AnnouncementCardProps {
 export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement }) => {
   const { toggleReaction, toggleBookmark, currentUser } = useAnnouncementStore();
   const { showToast } = useToast();
+  const [showTestModal, setShowTestModal] = useState(false);
 
   const isUrgent = announcement.priority === 'URGENT';
   const isImportant = announcement.priority === 'IMPORTANT';
@@ -127,8 +130,34 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement
           )}
         </div>
 
-        {/* Right Action Icons: Bookmark & Share */}
+        {/* Right Action Icons: Test Alert, Share & Bookmark */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              setShowTestModal(true);
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '4px 9px',
+              borderRadius: 8,
+              background: 'rgba(99, 102, 241, 0.08)',
+              color: 'var(--brand-primary)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)'
+            }}
+            title="Test Mobile Alert & Customize"
+            aria-label="Test mobile alert for this announcement"
+          >
+            <Bell size={13} />
+            <span>Test Notify</span>
+          </button>
+
           <button
             onClick={handleShare}
             style={{
@@ -333,6 +362,13 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement
           </Link>
         </div>
       </div>
+
+      {/* Test Mobile Alert & Customization Modal */}
+      <TestNotificationModal
+        announcement={announcement}
+        isOpen={showTestModal}
+        onClose={() => setShowTestModal(false)}
+      />
     </article>
   );
 };

@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 import { useToast } from '@/components/ui/Toast';
+import { Announcement } from '@/lib/types';
+import { TestNotificationModal } from '@/components/announcement/TestNotificationModal';
 import {
   getNotificationPermission,
   requestNotificationPermission,
@@ -31,6 +33,7 @@ export default function ProfilePage() {
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'SAVED' | 'ACKS' | 'SETTINGS'>('SAVED');
+  const [selectedTestPost, setSelectedTestPost] = useState<Announcement | null>(null);
 
   // Preferences State
   const [emailUrgent, setEmailUrgent] = useState(currentUser?.notification_preferences?.email_urgent ?? true);
@@ -199,10 +202,28 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <Link href={`/announcements/${post.id}`} className="btn btn-secondary btn-sm" style={{ gap: 6 }}>
-                  <span>Read</span>
-                  <ExternalLink size={13} />
-                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setSelectedTestPost(post)}
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      gap: 5,
+                      padding: '5px 10px',
+                      fontSize: 12,
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      color: 'var(--brand-primary)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)'
+                    }}
+                    title="Test Mobile Alert"
+                  >
+                    <Bell size={13} />
+                    <span>Test Alert</span>
+                  </button>
+                  <Link href={`/announcements/${post.id}`} className="btn btn-secondary btn-sm" style={{ gap: 6 }}>
+                    <span>Read</span>
+                    <ExternalLink size={13} />
+                  </Link>
+                </div>
               </div>
             ))
           )}
@@ -258,10 +279,28 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <Link href={`/announcements/${post.id}`} className="btn btn-secondary btn-sm" style={{ gap: 6 }}>
-                  <span>View Details</span>
-                  <ExternalLink size={13} />
-                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setSelectedTestPost(post)}
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      gap: 5,
+                      padding: '5px 10px',
+                      fontSize: 12,
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      color: 'var(--brand-primary)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)'
+                    }}
+                    title="Test Mobile Alert"
+                  >
+                    <Bell size={13} />
+                    <span>Test Alert</span>
+                  </button>
+                  <Link href={`/announcements/${post.id}`} className="btn btn-secondary btn-sm" style={{ gap: 6 }}>
+                    <span>View Details</span>
+                    <ExternalLink size={13} />
+                  </Link>
+                </div>
               </div>
             ))
           )}
@@ -411,6 +450,15 @@ export default function ProfilePage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Test Mobile Alert & Customization Modal */}
+      {selectedTestPost && (
+        <TestNotificationModal
+          announcement={selectedTestPost}
+          isOpen={!!selectedTestPost}
+          onClose={() => setSelectedTestPost(null)}
+        />
       )}
     </div>
   );

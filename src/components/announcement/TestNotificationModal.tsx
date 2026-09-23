@@ -1,0 +1,713 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Bell,
+  BellRing,
+  Smartphone,
+  Volume2,
+  Clock,
+  Check,
+  X,
+  RotateCcw,
+  AlertTriangle,
+  Send,
+  Sparkles
+} from 'lucide-react';
+import { Announcement } from '@/lib/types';
+import {
+  dispatchSystemNotification,
+  playNotificationSound,
+  getNotificationPermission,
+  requestNotificationPermission,
+  isNotificationSupported,
+  NotificationPermissionStatus
+} from '@/lib/notifications';
+import { useToast } from '@/components/ui/Toast';
+
+interface TestNotificationModalProps {
+  announcement: Announcement;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
+  announcement,
+  isOpen,
+  onClose
+}) => {
+  const { showToast } = useToast();
+
+  const defaultIsUrgent = announcement.priority === 'URGENT';
+  const defaultTitle = `${defaultIsUrgent ? '🚨 URGENT: ' : '📢 '}${announcement.title}`;
+  const defaultBody = `[${announcement.category}] ${announcement.summary || announcement.content.slice(0, 120)}`;
+
+  const [title, setTitle] = useState(defaultTitle);
+  const [body, setBody] = useState(defaultBody);
+  const [isUrgent, setIsUrgent] = useState(defaultIsUrgent);
+  const [delaySeconds, setDelaySeconds] = useState<number>(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [permission, setPermission] = useState<NotificationPermissionStatus>('default');
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync state when announcement changes or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const urgent = announcement.priority === 'URGENT';
+      setTitle(`${urgent ? '🚨 URGENT: ' : '📢 '}${announcement.title}`);
+      setBody(`[${announcement.category}] ${announcement.summary || announcement.content.slice(0, 120)}`);
+      setIsUrgent(urgent);
+      setDelaySeconds(0);
+      setCountdown(null);
+      setPermission(getNotificationPermission());
+    }
+  }, [isOpen, announcement]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+    };
+  }, []);
+
+  if (!isOpen) return null;
+
+  const handleReset = () => {
+    const urgent = announcement.priority === 'URGENT';
+    setTitle(`${urgent ? '🚨 URGENT: ' : '📢 '}${announcement.title}`);
+    setBody(`[${announcement.category}] ${announcement.summary || announcement.content.slice(0, 120)}`);
+    setIsUrgent(urgent);
+    setDelaySeconds(0);
+  };
+
+  const handleTestAudio = () => {
+    setIsPlayingAudio(true);
+    playNotificationSound(isUrgent);
+    setTimeout(() => setIsPlayingAudio(false), 800);
+  };
+
+  const handleRequestPermission = async () => {
+    const res = await requestNotificationPermission();
+    setPermission(res);
+    if (res === 'granted') {
+      showToast('Notification permission granted! You can now send test alerts to this device.', 'success');
+    } else {
+      showToast('Notifications are blocked or not supported on this browser.', 'error');
+    }
+  };
+
+  const triggerNotificationNow = () => {
+    dispatchSystemNotification(title, {
+      body,
+      url: `/announcements/${announcement.id}`,
+      tag: `test-ticket-${announcement.id}-${Date.now()}`,
+      isUrgent
+    });
+
+    showToast('📱 Test alert sent to your device! Check your notification bar / lock screen.', 'success');
+    setCountdown(null);
+  };
+
+  const handleSendTest = () => {
+    // If permission not granted, prompt first
+    if (permission !== 'granted') {
+      if (!isNotificationSupported()) {
+        showToast('System notifications are unsupported on this browser.', 'error');
+        // Still play audio chime so user can test the sound!
+        playNotificationSound(isUrgent);
+        return;
+      }
+      requestNotificationPermission().then((res) => {
+        setPermission(res);
+        if (res === 'granted') {
+          proceedWithSend();
+        } else {
+          showToast('Please allow notifications in your browser/device settings to test mobile alerts.', 'error');
+        }
+      });
+      return;
+    }
+
+    proceedWithSend();
+  };
+
+  const proceedWithSend = () => {
+    if (delaySeconds === 0) {
+      triggerNotificationNow();
+    } else {
+      // Start countdown
+      setCountdown(delaySeconds);
+      showToast(`⏱️ Alert scheduled in ${delaySeconds} seconds! Lock your phone screen now to test lock-screen alert.`, 'info');
+
+      let currentSec = delaySeconds;
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+
+      countdownTimerRef.current = setInterval(() => {
+        currentSec -= 1;
+        setCountdown(currentSec);
+
+        if (currentSec <= 0) {
+          if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+          triggerNotificationNow();
+        }
+      }, 1000);
+    }
+  };
+
+  const cancelCountdown = () => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setCountdown(null);
+    showToast('Test notification timer cancelled.', 'info');
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        animation: 'fadeIn 180ms ease'
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && countdown === null) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="glass-panel"
+        style={{
+          width: '100%',
+          maxWidth: 540,
+          maxHeight: '90vh',
+          backgroundColor: '#ffffff',
+          borderRadius: 20,
+          boxShadow: '0 20px 40px -8px rgba(15, 23, 42, 0.25)',
+          border: '1px solid var(--border-subtle)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          animation: 'slideUp 220ms ease'
+        }}
+      >
+        {/* Modal Header */}
+        <div
+          style={{
+            padding: '18px 20px',
+            borderBottom: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'var(--brand-gradient)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 10px var(--brand-glow)'
+              }}
+            >
+              <BellRing size={18} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Test Mobile Alert
+              </h2>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+                Customize & trigger push alert for this ticket
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            disabled={countdown !== null}
+            style={{
+              padding: 6,
+              borderRadius: 8,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-muted)',
+              cursor: countdown !== null ? 'not-allowed' : 'pointer'
+            }}
+            aria-label="Close modal"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Modal Body - Scrollable */}
+        <div
+          style={{
+            padding: '20px',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 18
+          }}
+        >
+          {/* Permission Status Callout */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: permission === 'granted' ? 'var(--success-bg)' : '#fffbeb',
+              border: `1px solid ${permission === 'granted' ? 'var(--success-border)' : '#fde68a'}`,
+              fontSize: 12,
+              gap: 8,
+              flexWrap: 'wrap'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {permission === 'granted' ? (
+                <>
+                  <Check size={16} color="var(--success)" />
+                  <span style={{ color: 'var(--success-text)', fontWeight: 600 }}>
+                    Mobile Alerts Ready (Permission Granted)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle size={16} color="#d97706" />
+                  <span style={{ color: '#b45309', fontWeight: 600 }}>
+                    Alert Permission Required on this device
+                  </span>
+                </>
+              )}
+            </div>
+
+            {permission !== 'granted' && (
+              <button
+                type="button"
+                onClick={handleRequestPermission}
+                className="btn btn-primary btn-sm"
+                style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6 }}
+              >
+                Enable Alerts
+              </button>
+            )}
+          </div>
+
+          {/* Live Mobile Lock Screen Preview Card */}
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 8
+              }}
+            >
+              <label
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                <Smartphone size={14} /> Live Phone Alert Preview
+              </label>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                As displayed on lock screen
+              </span>
+            </div>
+
+            <div
+              style={{
+                background: '#0f172a',
+                borderRadius: 16,
+                padding: '14px 16px',
+                color: '#ffffff',
+                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Subtle top glare effect */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 1,
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)'
+                }}
+              />
+
+              {/* Notification Header: App Icon & Name */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 4,
+                      background: 'var(--brand-gradient)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      color: '#ffffff'
+                    }}
+                  >
+                    P
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: '#94a3b8' }}>
+                    POWERHOUSE
+                  </span>
+                </div>
+                <span style={{ fontSize: 11, color: '#64748b' }}>now</span>
+              </div>
+
+              {/* Title */}
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: '#f8fafc',
+                  lineHeight: 1.35
+                }}
+              >
+                {title || '(No title entered)'}
+              </div>
+
+              {/* Body */}
+              <div
+                style={{
+                  fontSize: 12,
+                  color: '#cbd5e1',
+                  lineHeight: 1.45,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}
+              >
+                {body || '(No message body entered)'}
+              </div>
+
+              {/* Bottom hint */}
+              <div
+                style={{
+                  fontSize: 10,
+                  color: '#64748b',
+                  marginTop: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                <span>👉 Tap opens ticket:</span>
+                <span style={{ color: '#94a3b8' }}>/announcements/{announcement.id.slice(0, 10)}...</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Customization Form */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Title Input */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Alert Title
+                </label>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {title.length}/80 chars
+                </span>
+              </div>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Enter alert title..."
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-page)',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: 'var(--text-primary)',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            {/* Body Input */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Alert Message Body
+                </label>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {body.length}/200 chars
+                </span>
+              </div>
+              <textarea
+                rows={2}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Enter alert message body..."
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-page)',
+                  fontSize: 13,
+                  color: 'var(--text-primary)',
+                  resize: 'vertical',
+                  outline: 'none',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            {/* Urgency & Audio Chime Selector */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Tone & Urgency
+                </label>
+                <button
+                  type="button"
+                  onClick={handleTestAudio}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--brand-primary)',
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    cursor: 'pointer'
+                  }}
+                  title="Preview audio chime through device speaker"
+                >
+                  <Volume2 size={12} />
+                  <span>{isPlayingAudio ? 'Playing...' : 'Test Sound'}</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {/* Standard Option */}
+                <button
+                  type="button"
+                  onClick={() => setIsUrgent(false)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: !isUrgent ? '2px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
+                    background: !isUrgent ? 'rgba(99, 102, 241, 0.06)' : 'var(--bg-surface-elevated)',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>📢 Standard Chime</span>
+                    {!isUrgent && <Check size={14} color="var(--brand-primary)" />}
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Melodic 2-tone chime
+                  </span>
+                </button>
+
+                {/* Urgent Option */}
+                <button
+                  type="button"
+                  onClick={() => setIsUrgent(true)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: isUrgent ? '2px solid var(--urgent-base)' : '1px solid var(--border-subtle)',
+                    background: isUrgent ? 'var(--urgent-bg)' : 'var(--bg-surface-elevated)',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 700, color: isUrgent ? 'var(--urgent-text)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>🚨 Urgent Alert</span>
+                    {isUrgent && <Check size={14} color="var(--urgent-base)" />}
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    High-priority 3-tone siren
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Delay Selector - Crucial for Phone Lock Screen Testing */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Clock size={14} /> Send Delay (For Lock Screen Testing)
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {[
+                  { sec: 0, label: '⚡ Now', hint: 'Instant alert' },
+                  { sec: 5, label: '⏱️ In 5s', hint: 'Lock screen test' },
+                  { sec: 10, label: '⏱️ In 10s', hint: 'App switch test' }
+                ].map(({ sec, label, hint }) => (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => setDelaySeconds(sec)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 10,
+                      border: delaySeconds === sec ? '2px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
+                      background: delaySeconds === sec ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-surface-elevated)',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, color: delaySeconds === sec ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
+                      {label}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      {hint}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {delaySeconds > 0 && (
+                <div style={{ fontSize: 11, color: 'var(--brand-secondary)', marginTop: 6, fontWeight: 500 }}>
+                  💡 Tip: Tap "Send Test Alert", then immediately lock your phone screen or go to home screen to test how the notification pops up!
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Footer / Action Buttons */}
+        <div
+          style={{
+            padding: '16px 20px',
+            borderTop: '1px solid var(--border-subtle)',
+            background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            flexWrap: 'wrap'
+          }}
+        >
+          {countdown !== null ? (
+            /* Countdown In-Progress View */
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 14px',
+                borderRadius: 10,
+                background: 'rgba(99, 102, 241, 0.1)',
+                border: '1px solid rgba(99, 102, 241, 0.3)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="pulsating-dot" />
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand-primary)' }}>
+                  Sending in {countdown}s... Lock your screen now!
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={cancelCountdown}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '4px 10px', fontSize: 11 }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            /* Standard Action Buttons */
+            <>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="btn btn-secondary btn-sm"
+                style={{ gap: 5, color: 'var(--text-muted)' }}
+                title="Reset to ticket values"
+              >
+                <RotateCcw size={13} />
+                <span>Reset</span>
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSendTest}
+                  className="btn btn-primary btn-sm"
+                  style={{ gap: 6, padding: '8px 16px', fontWeight: 700 }}
+                >
+                  <Send size={14} />
+                  <span>
+                    {delaySeconds > 0 ? `Start ${delaySeconds}s Test` : 'Send Test Alert Now'}
+                  </span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

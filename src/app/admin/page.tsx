@@ -14,10 +14,12 @@ import {
   Archive,
   BarChart3,
   Users,
-  Send
+  Send,
+  Bell
 } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 import { AuditLogModal } from '@/components/admin/AuditLogModal';
+import { TestNotificationModal } from '@/components/announcement/TestNotificationModal';
 import { sendAnnouncementWebhook } from '@/lib/webhook';
 import { useToast } from '@/components/ui/Toast';
 import { Announcement } from '@/lib/types';
@@ -29,6 +31,7 @@ export default function AdminDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'SCHEDULED' | 'DRAFT' | 'ARCHIVED'>('ACTIVE');
   const [selectedAuditPost, setSelectedAuditPost] = useState<Announcement | null>(null);
+  const [selectedTestPost, setSelectedTestPost] = useState<Announcement | null>(null);
 
   const isAdmin = currentUser
     ? ['super_admin', 'hr_admin', 'contributor', 'dementor'].includes(currentUser.role) ||
@@ -233,6 +236,15 @@ export default function AdminDashboardPage() {
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <button
+                            onClick={() => setSelectedTestPost(post)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: 6, color: 'var(--brand-primary)' }}
+                            title="Test & customize mobile alert for this post"
+                          >
+                            <Bell size={14} />
+                          </button>
+
+                          <button
                             onClick={() => handleSlackBroadcast(post)}
                             className="btn btn-secondary btn-sm"
                             style={{ padding: 6 }}
@@ -283,6 +295,15 @@ export default function AdminDashboardPage() {
         <AuditLogModal
           announcement={selectedAuditPost}
           onClose={() => setSelectedAuditPost(null)}
+        />
+      )}
+
+      {/* Test Mobile Alert & Customization Modal */}
+      {selectedTestPost && (
+        <TestNotificationModal
+          announcement={selectedTestPost}
+          isOpen={!!selectedTestPost}
+          onClose={() => setSelectedTestPost(null)}
         />
       )}
     </div>
