@@ -8,6 +8,7 @@ import { PwaPrompt } from '@/components/ui/PwaPrompt';
 export const metadata: Metadata = {
   title: 'Powerhouse | Company Announcements & Compliance Hub',
   description: 'Internal communications, mandatory policy sign-offs, and company event calendar.',
+  applicationName: 'Powerhouse',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
@@ -44,9 +45,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="application-name" content="Powerhouse" />
+        <meta name="apple-mobile-web-app-title" content="Powerhouse" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon-96x96.png" sizes="96x96" type="image/png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png" />
       </head>
       <body>
         <AnnouncementStoreProvider>

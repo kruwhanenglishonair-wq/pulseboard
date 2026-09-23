@@ -1,9 +1,12 @@
 // Powerhouse Service Worker
-const CACHE_NAME = 'powerhouse-v2';
+const CACHE_NAME = 'powerhouse-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
+  '/manifest.json',
   '/icons/icon.svg',
+  '/apple-touch-icon.png',
+  '/favicon-96x96.png',
   '/favicon.ico'
 ];
 
@@ -22,7 +25,10 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => {
+            console.log('Clearing old cache:', name);
+            return caches.delete(name);
+          })
       );
     })
   );
@@ -33,15 +39,21 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
-  // For API or dynamic server calls, try network first then fallback to cache
   const url = new URL(event.request.url);
 
-  if (url.pathname.startsWith('/api/')) {
+  // Network-first for manifests, icons, and API calls to guarantee fresh branding
+  if (url.pathname.startsWith('/api/') || url.pathname.includes('manifest') || url.pathname.includes('apple-touch-icon')) {
     event.respondWith(
       fetch(event.request).catch(() => {
-        return new Response(JSON.stringify({ error: 'Offline mode active' }), {
-          headers: { 'Content-Type': 'application/json' },
-          status: 503
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
+          if (url.pathname.startsWith('/api/')) {
+            return new Response(JSON.stringify({ error: 'Offline mode active' }), {
+              headers: { 'Content-Type': 'application/json' },
+              status: 503
+            });
+          }
+          return new Response('', { status: 404 });
         });
       })
     );
@@ -61,10 +73,7 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
-          // Offline fallback
-          return cachedResponse;
-        });
+        .catch(() => cachedResponse);
 
       return cachedResponse || fetchPromise;
     })
