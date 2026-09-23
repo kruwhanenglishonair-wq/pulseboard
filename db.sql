@@ -464,7 +464,32 @@ INSERT INTO public.app_users (
     'Executive Management',
     'Bangkok HQ',
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&fit=crop&crop=faces'
-)
 ON CONFLICT (email) DO NOTHING;
+
+-- ==============================================================================
+-- 15. Mobile & Desktop Web Push Subscriptions Table
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    endpoint TEXT UNIQUE NOT NULL,
+    keys JSONB NOT NULL,
+    user_id UUID,
+    user_agent TEXT,
+    is_mobile BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_endpoint ON public.push_subscriptions(endpoint);
+
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public push subscriptions access" ON public.push_subscriptions;
+CREATE POLICY "Public push subscriptions access"
+    ON public.push_subscriptions FOR ALL
+    TO anon, authenticated
+    USING (true)
+    WITH CHECK (true);
 
 

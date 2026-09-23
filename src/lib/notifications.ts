@@ -5,6 +5,7 @@
  */
 
 import { Announcement } from '@/lib/types';
+import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from '@/lib/pushConfig';
 
 const NOTIFIED_STORAGE_KEY = 'powerhouse_notified_announcements_v1';
 
@@ -26,7 +27,98 @@ export const getNotificationPermission = (): NotificationPermissionStatus => {
 };
 
 /**
- * Request notification permission from the user
+ * Register current device with the Web Push Server
+ * Enables receiving notifications sent from PC or other devices even when closed!
+ */
+export const registerPushSubscription = async (): Promise<boolean> => {
+  if (
+    typeof window === 'undefined' ||
+    !('serviceWorker' in navigator) ||
+    !('PushManager' in window)
+  ) {
+    return false;
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg.pushManager) return false;
+
+    let sub = await reg.pushManager.getSubscription();
+
+    if (!sub && Notification.permission === 'granted') {
+      const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedKey as unknown as BufferSource
+      });
+    }
+
+    if (sub) {
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription: sub,
+          deviceInfo: {
+            userAgent: navigator.userAgent,
+            isMobile
+          }
+        })
+      });
+      console.log(`[Push Client] Registered push subscription (${isMobile ? 'Mobile' : 'Desktop'})`);
+      return true;
+    }
+  } catch (err) {
+    console.warn('[Push Client] Failed to register push subscription:', err);
+  }
+  return false;
+};
+
+/**
+ * Broadcast a Web Push notification to ALL connected mobile devices via cloud (PC -> Mobile)
+ */
+export const sendPushNotificationToAllDevices = async (
+  title: string,
+  options: {
+    body?: string;
+    url?: string;
+    tag?: string;
+    isUrgent?: boolean;
+  } = {}
+): Promise<{ success: boolean; sentCount: number; mobileDevices: number; message: string }> => {
+  try {
+    const res = await fetch('/api/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        body: options.body || '',
+        url: options.url || '/',
+        tag: options.tag || `push-${Date.now()}`,
+        isUrgent: options.isUrgent ?? false
+      })
+    });
+    const data = await res.json();
+    return {
+      success: data.success ?? false,
+      sentCount: data.sentCount ?? 0,
+      mobileDevices: data.mobileDevices ?? 0,
+      message: data.message || ''
+    };
+  } catch (e: any) {
+    console.warn('[Push Client] Push broadcast failed:', e);
+    return {
+      success: false,
+      sentCount: 0,
+      mobileDevices: 0,
+      message: e.message || 'Network error'
+    };
+  }
+};
+
+/**
+ * Request notification permission from the user and register device for cloud push
  */
 export const requestNotificationPermission = async (): Promise<NotificationPermissionStatus> => {
   if (!isNotificationSupported()) return 'unsupported';
@@ -34,6 +126,7 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
   try {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
+      await registerPushSubscription();
       sendTestNotification();
     }
     return permission as NotificationPermissionStatus;
@@ -101,6 +194,7 @@ export const dispatchSystemNotification = async (
     url?: string;
     tag?: string;
     isUrgent?: boolean;
+    broadcastToRemoteDevices?: boolean;
   } = {}
 ) => {
   if (typeof window === 'undefined') return;
@@ -117,6 +211,16 @@ export const dispatchSystemNotification = async (
   };
 
   playNotificationSound(options.isUrgent);
+
+  // Cross-device push: broadcast to remote mobile devices via Web Push server
+  if (options.broadcastToRemoteDevices !== false) {
+    sendPushNotificationToAllDevices(title, {
+      body: options.body,
+      url: options.url,
+      tag: options.tag,
+      isUrgent: options.isUrgent
+    }).catch(() => {});
+  }
 
   if (!isNotificationSupported() || Notification.permission !== 'granted') {
     return;

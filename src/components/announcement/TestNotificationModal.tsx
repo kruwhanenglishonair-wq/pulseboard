@@ -24,7 +24,8 @@ import {
   isNotificationSupported,
   NotificationPermissionStatus,
   updateAppBadge,
-  clearAppBadge
+  clearAppBadge,
+  sendPushNotificationToAllDevices
 } from '@/lib/notifications';
 import { useToast } from '@/components/ui/Toast';
 
@@ -110,6 +111,21 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
     setTimeout(() => setIsPlayingAudio(false), 800);
   };
 
+  const [deviceStats, setDeviceStats] = useState<{ total: number; mobile: number } | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/push/subscribe')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setDeviceStats({ total: data.totalDevices, mobile: data.mobileDevices });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
+
   const handleRequestPermission = async () => {
     const res = await requestNotificationPermission();
     setPermission(res);
@@ -120,39 +136,52 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
     }
   };
 
-  const triggerNotificationNow = () => {
+  const triggerNotificationNow = async () => {
+    // 1. Dispatch locally on current machine
     dispatchSystemNotification(title, {
       body,
       url: `/announcements/${announcement.id}`,
       tag: `test-ticket-${announcement.id}-${Date.now()}`,
-      isUrgent
+      isUrgent,
+      broadcastToRemoteDevices: false
     });
 
-    showToast('📱 Test alert sent to your device! Check your notification bar / lock screen.', 'success');
+    // 2. Broadcast Web Push to all connected mobile devices via cloud server!
+    try {
+      const pushRes = await sendPushNotificationToAllDevices(title, {
+        body,
+        url: `/announcements/${announcement.id}`,
+        tag: `test-ticket-${announcement.id}-${Date.now()}`,
+        isUrgent
+      });
+
+      if (pushRes.success && pushRes.sentCount > 0) {
+        showToast(
+          `🚀 Alert pushed to ${pushRes.sentCount} device(s) including connected mobile phones! Check your phone.`,
+          'success'
+        );
+      } else {
+        showToast(
+          '📱 Alert triggered locally! (To receive alerts on your phone when clicking on PC: open Powerhouse on your phone once & tap "Set Badge" or "Turn On Alerts")',
+          'info'
+        );
+      }
+    } catch (e) {
+      showToast('📱 Alert triggered on device.', 'success');
+    }
     setCountdown(null);
   };
 
   const handleSendTest = () => {
-    // If permission not granted, prompt first
-    if (permission !== 'granted') {
-      if (!isNotificationSupported()) {
-        showToast('System notifications are unsupported on this browser.', 'error');
-        // Still play audio chime so user can test the sound!
-        playNotificationSound(isUrgent);
-        return;
-      }
+    // Proceed with send immediately so PC can trigger Web Push to mobile even if PC hasn't enabled local notifications
+    proceedWithSend();
+
+    // If local permission not granted, gently prompt
+    if (permission !== 'granted' && isNotificationSupported()) {
       requestNotificationPermission().then((res) => {
         setPermission(res);
-        if (res === 'granted') {
-          proceedWithSend();
-        } else {
-          showToast('Please allow notifications in your browser/device settings to test mobile alerts.', 'error');
-        }
       });
-      return;
     }
-
-    proceedWithSend();
   };
 
   const proceedWithSend = () => {
@@ -339,6 +368,60 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
                 Enable Alerts
               </button>
             )}
+          </div>
+
+          {/* Cloud Push Device Status Callout (PC -> Mobile) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: deviceStats && deviceStats.mobile > 0 ? '#ecfdf5' : '#f0f9ff',
+              border: `1px solid ${deviceStats && deviceStats.mobile > 0 ? '#a7f3d0' : '#bae6fd'}`,
+              fontSize: 12,
+              gap: 8,
+              flexWrap: 'wrap'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Smartphone size={16} color={deviceStats && deviceStats.mobile > 0 ? '#059669' : '#0284c7'} />
+              <div>
+                <div style={{ fontWeight: 700, color: deviceStats && deviceStats.mobile > 0 ? '#065f46' : '#0369a1' }}>
+                  {deviceStats && deviceStats.mobile > 0
+                    ? `📱 ${deviceStats.mobile} Mobile Phone(s) Connected for Push`
+                    : '📱 Cross-Device Push (PC → Mobile)'}
+                </div>
+                <div style={{ fontSize: 11, color: deviceStats && deviceStats.mobile > 0 ? '#047857' : '#0c4a6e' }}>
+                  {deviceStats && deviceStats.mobile > 0
+                    ? 'Triggering this alert will send a Web Push notification to your connected mobile phone!'
+                    : 'To get alerts on your phone when clicking on PC: Open Powerhouse on your phone once & tap "Set Badge" or "Turn On Alerts".'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await fetch('/api/push/subscribe').then((r) => r.json()).catch(() => ({}));
+                if (res.success) {
+                  setDeviceStats({ total: res.totalDevices, mobile: res.mobileDevices });
+                  showToast(`📡 Connected devices: ${res.mobileDevices} mobile, ${res.totalDevices} total`, 'info');
+                }
+              }}
+              style={{
+                fontSize: 11,
+                padding: '4px 8px',
+                borderRadius: 6,
+                border: '1px solid rgba(0,0,0,0.1)',
+                background: '#ffffff',
+                cursor: 'pointer',
+                color: '#475569',
+                fontWeight: 600
+              }}
+            >
+              🔄 Refresh
+            </button>
           </div>
 
           {/* Live Mobile Lock Screen Preview Card */}
@@ -702,7 +785,11 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
                       await requestNotificationPermission();
                     }
                     await updateAppBadge(1);
-                    showToast('🔴 Home screen app icon badge set to 1! Look at your phone home screen.', 'success');
+                    await sendPushNotificationToAllDevices('🔴 Powerhouse: 1 New Notice', {
+                      body: 'You have 1 unread announcement. Tap to open.',
+                      tag: 'powerhouse-unread-badge'
+                    });
+                    showToast('🔴 Home screen app icon badge set to 1! Dispatched to connected mobile phone(s).', 'success');
                   }}
                   className="btn btn-secondary btn-sm"
                   style={{ padding: '4px 10px', fontSize: 11, background: '#ffffff' }}
@@ -716,7 +803,11 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
                       await requestNotificationPermission();
                     }
                     await updateAppBadge(5);
-                    showToast('🔴 Home screen app icon badge set to 5! Look at your phone home screen.', 'success');
+                    await sendPushNotificationToAllDevices('🔴 Powerhouse: 5 New Notices', {
+                      body: 'You have 5 unread announcements. Tap to open.',
+                      tag: 'powerhouse-unread-badge'
+                    });
+                    showToast('🔴 Home screen app icon badge set to 5! Dispatched to connected mobile phone(s).', 'success');
                   }}
                   className="btn btn-secondary btn-sm"
                   style={{ padding: '4px 10px', fontSize: 11, background: '#ffffff' }}

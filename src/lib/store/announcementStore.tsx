@@ -12,7 +12,7 @@ import {
 } from '../types';
 import { MOCK_ANNOUNCEMENTS, MOCK_EVENTS, MOCK_COMMENTS, MOCK_APP_USERS, DEFAULT_DEPARTMENTS } from '../mockData';
 import { getSupabaseClient, isSupabaseConfigured, getSupabaseUrl, setSupabaseConfig, cleanSupabaseUrl, cleanSupabaseKey } from '../supabase';
-import { updateAppBadge } from '@/lib/notifications';
+import { updateAppBadge, registerPushSubscription } from '@/lib/notifications';
 
 interface AnnouncementStoreContextType {
   currentUser: AppUser | null;
@@ -1224,6 +1224,13 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
   });
 
   const unreadCount = unreadAnnouncements.length;
+
+  // Auto-register device with Web Push server if permission is granted (enables cross-device PC -> Mobile alerts)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      registerPushSubscription().catch(() => {});
+    }
+  }, []);
 
   // Whenever unread count changes or app regains focus/visibility, sync native mobile app icon badge!
   useEffect(() => {

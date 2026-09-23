@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Download, X, Smartphone } from 'lucide-react';
+import { registerPushSubscription } from '@/lib/notifications';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -18,7 +19,12 @@ export const PwaPrompt = () => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then((reg) => console.log('Powerhouse SW registered:', reg.scope))
+        .then((reg) => {
+          console.log('Powerhouse SW registered:', reg.scope);
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            registerPushSubscription().catch(() => {});
+          }
+        })
         .catch((err) => console.warn('SW registration failed:', err));
     }
 
