@@ -27,7 +27,7 @@ interface PostEditorFormProps {
 
 export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isEditing = false }) => {
   const router = useRouter();
-  const { createAnnouncement, updateAnnouncement, currentUser } = useAnnouncementStore();
+  const { createAnnouncement, updateAnnouncement, currentUser, departments } = useAnnouncementStore();
   const { showToast } = useToast();
 
   const [title, setTitle] = useState(initialData?.title || '');
@@ -36,7 +36,7 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
   const [category, setCategory] = useState<AnnouncementCategory>(initialData?.category || 'GENERAL');
   const [priority, setPriority] = useState<AnnouncementPriority>(initialData?.priority || 'GENERAL');
   const [targetType, setTargetType] = useState<TargetAudienceType>(initialData?.target_type || 'ALL');
-  const [targetValue, setTargetValue] = useState(initialData?.target_value || '');
+  const [targetValue, setTargetValue] = useState(initialData?.target_value || (departments[0]?.name || 'Platform Engineering'));
   const [isPinned, setIsPinned] = useState(initialData?.is_pinned || false);
   const [requiresAck, setRequiresAck] = useState(initialData?.requires_acknowledgement || false);
   const [allowComments, setAllowComments] = useState(initialData?.allow_comments ?? true);
@@ -321,7 +321,7 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
                 Select Department
               </label>
               <select
-                value={targetValue || 'Engineering'}
+                value={targetValue || (departments[0]?.name || 'Platform Engineering')}
                 onChange={(e) => setTargetValue(e.target.value)}
                 style={{
                   width: '100%',
@@ -332,11 +332,14 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
                   color: '#0f172a'
                 }}
               >
-                <option value="Engineering">Platform Engineering</option>
-                <option value="Product Design">Product Design</option>
-                <option value="People & HR">People & HR</option>
-                <option value="Sales & Growth">Sales & Growth</option>
-                <option value="Operations">Operations & Facilities</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.name}>
+                    {d.name}
+                  </option>
+                ))}
+                {!departments.some((d) => d.name === targetValue) && targetValue && (
+                  <option value={targetValue}>{targetValue}</option>
+                )}
               </select>
             </div>
           )}

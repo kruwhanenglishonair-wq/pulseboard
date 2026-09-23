@@ -7,9 +7,10 @@ import {
   CompanyEvent,
   Comment,
   AuditRecord,
-  AppUser
+  AppUser,
+  Department
 } from '../types';
-import { MOCK_ANNOUNCEMENTS, MOCK_EVENTS, MOCK_COMMENTS, MOCK_APP_USERS } from '../mockData';
+import { MOCK_ANNOUNCEMENTS, MOCK_EVENTS, MOCK_COMMENTS, MOCK_APP_USERS, DEFAULT_DEPARTMENTS } from '../mockData';
 import { getSupabaseClient, isSupabaseConfigured, getSupabaseUrl, setSupabaseConfig, cleanSupabaseUrl, cleanSupabaseKey } from '../supabase';
 
 interface AnnouncementStoreContextType {
@@ -44,6 +45,12 @@ interface AnnouncementStoreContextType {
   updateUser: (id: string, userData: Partial<AppUser>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
 
+  // Department Management
+  departments: Department[];
+  addDepartment: (deptData: { name: string; description?: string; color?: string; icon?: string }) => Promise<Department>;
+  updateDepartment: (id: string, updates: Partial<Department>) => Promise<void>;
+  deleteDepartment: (id: string) => Promise<void>;
+
   // Post Actions
   acknowledgeAnnouncement: (announcementId: string) => void;
   toggleReaction: (announcementId: string, emoji: string) => void;
@@ -77,12 +84,14 @@ const STORAGE_KEYS = {
   ANNOUNCEMENTS: 'powerhouse_announcements_v1',
   COMMENTS: 'powerhouse_comments_v1',
   EVENTS: 'powerhouse_events_v1',
-  ACKS: 'powerhouse_acks_v1'
+  ACKS: 'powerhouse_acks_v1',
+  DEPARTMENTS: 'powerhouse_departments_v1'
 };
 
 export const AnnouncementStoreProvider = ({ children }: { children: ReactNode }) => {
   const [appUsers, setAppUsers] = useState<AppUser[]>(MOCK_APP_USERS);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [departments, setDepartments] = useState<Department[]>(DEFAULT_DEPARTMENTS);
   const [announcements, setAnnouncements] = useState<Announcement[]>(MOCK_ANNOUNCEMENTS);
   const [events, setEvents] = useState<CompanyEvent[]>(MOCK_EVENTS);
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
@@ -149,6 +158,19 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
 
       const storedAcks = localStorage.getItem(STORAGE_KEYS.ACKS) || localStorage.getItem('pulseboard_acks_v3');
       if (storedAcks) setAcknowledgements(JSON.parse(storedAcks));
+
+      // 4. Load departments from storage
+      const storedDepts = localStorage.getItem(STORAGE_KEYS.DEPARTMENTS);
+      if (storedDepts) {
+        try {
+          const parsed = JSON.parse(storedDepts);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setDepartments(parsed);
+          }
+        } catch (e) {
+          setDepartments(DEFAULT_DEPARTMENTS);
+        }
+      }
 
       // Check for locally saved custom credentials (useful when testing on localhost)
       const customUrl = localStorage.getItem('powerhouse_supabase_url') || localStorage.getItem('pulseboard_supabase_url');
@@ -248,6 +270,25 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
           }
         }
       }
+
+      // 4. Fetch live departments
+      if (supabase && isSupabaseConfigured()) {
+        const { data, error } = await supabase.from('departments').select('*').order('name', { ascending: true });
+        if (!error && data && data.length > 0) {
+          setDepartments(data as any);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(data));
+          }
+        }
+      } else {
+        const deptsRes = await fetch('/api/departments').then((r) => r.json()).catch(() => null);
+        if (deptsRes && deptsRes.success && Array.isArray(deptsRes.departments) && deptsRes.departments.length > 0) {
+          setDepartments(deptsRes.departments);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(deptsRes.departments));
+          }
+        }
+      }
     } catch (err) {
       console.warn('Error refreshing live data:', err);
     }
@@ -264,6 +305,13 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     setAnnouncements(items);
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(items));
+    }
+  };
+
+  const saveDepartments = (depts: Department[]) => {
+    setDepartments(depts);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
     }
   };
 
@@ -616,6 +664,95 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
 
     const updated = appUsers.filter((u) => u.id !== id);
     saveUsers(updated);
+  };
+
+  // Department Management: Add
+  const addDepartment = async (deptData: { name: string; description?: string; color?: string; icon?: string }): Promise<Department> => {
+    const newDept: Department = {
+      id: generateUUID(),
+      name: deptData.name.trim(),
+      description: deptData.description?.trim() || '',
+      color: deptData.color || '#3b82f6',
+      icon: deptData.icon || 'Layers',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const next = [...departments, newDept];
+    saveDepartments(next);
+
+    // Sync to Supabase / API
+    try {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          const { data, error } = await supabase.from('departments').insert([newDept]).select().single();
+          if (!error && data) {
+            const updated = next.map((d) => (d.id === newDept.id ? data : d));
+            saveDepartments(updated);
+            return data;
+          }
+        }
+      } else {
+        const res = await fetch('/api/departments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newDept)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (json.success && json.department) {
+          const updated = next.map((d) => (d.id === newDept.id ? json.department : d));
+          saveDepartments(updated);
+          return json.department;
+        }
+      }
+    } catch (e) {
+      console.warn('Department sync warning:', e);
+    }
+
+    return newDept;
+  };
+
+  // Department Management: Update
+  const updateDepartment = async (id: string, updates: Partial<Department>): Promise<void> => {
+    const next = departments.map((d) => (d.id === id ? { ...d, ...updates, updated_at: new Date().toISOString() } : d));
+    saveDepartments(next);
+
+    try {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          await supabase.from('departments').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+        }
+      } else {
+        await fetch('/api/departments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, ...updates })
+        });
+      }
+    } catch (e) {
+      console.warn('Department update warning:', e);
+    }
+  };
+
+  // Department Management: Delete
+  const deleteDepartment = async (id: string): Promise<void> => {
+    const next = departments.filter((d) => d.id !== id);
+    saveDepartments(next);
+
+    try {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          await supabase.from('departments').delete().eq('id', id);
+        }
+      } else {
+        await fetch(`/api/departments?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      }
+    } catch (e) {
+      console.warn('Department delete warning:', e);
+    }
   };
 
   // Announcement compliance sign-off
@@ -1040,6 +1177,10 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
         addUser,
         updateUser,
         deleteUser,
+        departments,
+        addDepartment,
+        updateDepartment,
+        deleteDepartment,
         acknowledgeAnnouncement,
         toggleReaction,
         addComment,

@@ -1,4 +1,55 @@
-import { Profile, Announcement, CompanyEvent, Comment, AppUser } from './types';
+import { Profile, Announcement, CompanyEvent, Comment, AppUser, Department } from './types';
+
+export const DEFAULT_DEPARTMENTS: Department[] = [
+  {
+    id: 'dept-eng',
+    name: 'Platform Engineering',
+    description: 'Core infrastructure, software development, site reliability, and developer tooling.',
+    color: '#3b82f6',
+    icon: 'Code',
+    created_at: '2026-01-01T08:00:00Z'
+  },
+  {
+    id: 'dept-design',
+    name: 'Product Design',
+    description: 'UI/UX research, design systems, visual branding, and product user experience.',
+    color: '#ec4899',
+    icon: 'Palette',
+    created_at: '2026-01-01T08:00:00Z'
+  },
+  {
+    id: 'dept-hr',
+    name: 'People & HR',
+    description: 'Employee lifecycle, onboarding, corporate wellness, culture, and talent acquisition.',
+    color: '#10b981',
+    icon: 'HeartHandshake',
+    created_at: '2026-01-01T08:00:00Z'
+  },
+  {
+    id: 'dept-sales',
+    name: 'Sales & Growth',
+    description: 'Client partnerships, inbound sales pipelines, market growth, and revenue operations.',
+    color: '#f59e0b',
+    icon: 'TrendingUp',
+    created_at: '2026-01-01T08:00:00Z'
+  },
+  {
+    id: 'dept-ops',
+    name: 'Operations & Facilities',
+    description: 'Global logistics, office infrastructure, procurement, and workspace safety.',
+    color: '#8b5cf6',
+    icon: 'Building2',
+    created_at: '2026-01-01T08:00:00Z'
+  },
+  {
+    id: 'dept-exec',
+    name: 'Executive Management',
+    description: 'Strategic leadership, company direction, investor relations, and corporate governance.',
+    color: '#6366f1',
+    icon: 'ShieldCheck',
+    created_at: '2026-01-01T08:00:00Z'
+  }
+];
 
 // Initial Master Dementor Admin account (Default system administrator)
 export const INITIAL_DEMENTOR: AppUser = {

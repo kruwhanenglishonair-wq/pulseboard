@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Search, X, Filter } from 'lucide-react';
-import { AnnouncementCategory, AnnouncementPriority } from '@/lib/types';
+import { Search, X, Filter, Building2 } from 'lucide-react';
+import { AnnouncementCategory, AnnouncementPriority, Department } from '@/lib/types';
 
 interface FeedFiltersProps {
   searchQuery: string;
@@ -12,6 +12,9 @@ interface FeedFiltersProps {
   selectedPriority: string;
   setSelectedPriority: (priority: string) => void;
   categoryCounts: Record<string, number>;
+  selectedDepartment?: string;
+  setSelectedDepartment?: (dept: string) => void;
+  departments?: Department[];
 }
 
 export const FeedFilters: React.FC<FeedFiltersProps> = ({
@@ -21,7 +24,10 @@ export const FeedFilters: React.FC<FeedFiltersProps> = ({
   setSelectedCategory,
   selectedPriority,
   setSelectedPriority,
-  categoryCounts
+  categoryCounts,
+  selectedDepartment,
+  setSelectedDepartment,
+  departments
 }) => {
   const categories: { label: string; value: string }[] = [
     { label: 'All Updates', value: 'ALL' },
@@ -84,7 +90,7 @@ export const FeedFilters: React.FC<FeedFiltersProps> = ({
         )}
       </div>
 
-      {/* Filter Row: Category Chips & Priority Selector */}
+      {/* Filter Row: Category Chips, Department Dropdown & Priority Selector */}
       <div
         style={{
           display: 'flex',
@@ -146,31 +152,97 @@ export const FeedFilters: React.FC<FeedFiltersProps> = ({
           })}
         </div>
 
-        {/* Priority Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <select
-            value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: 12,
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              outline: 'none'
-            }}
-          >
-            {priorities.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+        {/* Right side filters: Department & Priority */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {/* Department Selector */}
+          {departments && setSelectedDepartment && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <select
+                value={selectedDepartment || 'ALL'}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  background: selectedDepartment && selectedDepartment !== 'ALL' ? 'var(--brand-primary)' : 'var(--bg-surface)',
+                  color: selectedDepartment && selectedDepartment !== 'ALL' ? '#ffffff' : 'var(--text-secondary)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                <option value="ALL">🏢 All Departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.name}>
+                    🏢 {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Priority Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <select
+              value={selectedPriority}
+              onChange={(e) => setSelectedPriority(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              {priorities.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
+
+      {/* Active Department Filter Tag */}
+      {selectedDepartment && selectedDepartment !== 'ALL' && (
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 14px',
+            borderRadius: 20,
+            background: 'var(--brand-glow)',
+            color: 'var(--brand-primary)',
+            fontSize: 13,
+            fontWeight: 700,
+            alignSelf: 'flex-start'
+          }}
+        >
+          <Building2 size={15} />
+          <span>Department Filter: {selectedDepartment}</span>
+          <button
+            onClick={() => setSelectedDepartment && setSelectedDepartment('ALL')}
+            title="Clear department filter"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--brand-primary)',
+              display: 'flex',
+              padding: 0
+            }}
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,18 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Sparkles, PlusCircle, Filter } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 import { UrgentAlertBanner } from '@/components/feed/UrgentAlertBanner';
 import { FeedFilters } from '@/components/feed/FeedFilters';
 import { AnnouncementCard } from '@/components/feed/AnnouncementCard';
 
-export default function HomeFeedPage() {
-  const { announcements, currentUser } = useAnnouncementStore();
+function HomeFeedContent() {
+  const { announcements, currentUser, departments } = useAnnouncementStore();
+  const searchParams = useSearchParams();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedPriority, setSelectedPriority] = useState('ALL');
+  const [selectedDepartment, setSelectedDepartment] = useState('ALL');
+
+  // Sync query params from URL (e.g. from Department & Category Hubs)
+  useEffect(() => {
+    const deptParam = searchParams.get('department');
+    if (deptParam) {
+      setSelectedDepartment(deptParam);
+    }
+    const catParam = searchParams.get('category');
+    if (catParam) {
+      setSelectedCategory(catParam);
+    }
+  }, [searchParams]);
 
   const isAdminOrContributor = currentUser
     ? ['super_admin', 'hr_admin', 'contributor', 'dementor'].includes(currentUser.role) ||
@@ -43,6 +59,14 @@ export default function HomeFeedPage() {
 
       // Priority filter
       if (selectedPriority !== 'ALL' && a.priority !== selectedPriority) return false;
+
+      // Department filter (Targeted to dept OR Authored by dept)
+      if (selectedDepartment !== 'ALL') {
+        const d = selectedDepartment.toLowerCase();
+        const matchesTarget = a.target_value && a.target_value.toLowerCase() === d;
+        const matchesAuthor = a.author?.department && a.author.department.toLowerCase() === d;
+        if (!matchesTarget && !matchesAuthor) return false;
+      }
 
       // Search query filter
       if (searchQuery.trim()) {
@@ -96,7 +120,7 @@ export default function HomeFeedPage() {
       {/* Urgent Critical Alert Banner */}
       <UrgentAlertBanner urgentAnnouncements={urgentUnacknowledged} />
 
-      {/* Filter and Search Bar */}
+      {/* Filter and Search Bar with Department Support */}
       <FeedFilters
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -105,6 +129,9 @@ export default function HomeFeedPage() {
         selectedPriority={selectedPriority}
         setSelectedPriority={setSelectedPriority}
         categoryCounts={categoryCounts}
+        selectedDepartment={selectedDepartment}
+        setSelectedDepartment={setSelectedDepartment}
+        departments={departments}
       />
 
       {/* Announcement Cards Stream */}
@@ -126,13 +153,16 @@ export default function HomeFeedPage() {
               No announcements match your filter
             </h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 400 }}>
-              Try adjusting your search terms, clearing category filters, or switching priority levels.
+              {selectedDepartment !== 'ALL'
+                ? `There are currently no announcements for ${selectedDepartment}.`
+                : 'Try adjusting your search terms, clearing category filters, or switching priority levels.'}
             </p>
             <button
               onClick={() => {
                 setSearchQuery('');
                 setSelectedCategory('ALL');
                 setSelectedPriority('ALL');
+                setSelectedDepartment('ALL');
               }}
               className="btn btn-secondary btn-sm"
               style={{ marginTop: 8 }}
@@ -147,5 +177,13 @@ export default function HomeFeedPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function HomeFeedPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>Loading announcement stream...</div>}>
+      <HomeFeedContent />
+    </Suspense>
   );
 }

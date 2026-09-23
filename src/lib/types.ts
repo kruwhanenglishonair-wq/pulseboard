@@ -8,6 +8,16 @@ export type AnnouncementStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED
 
 export type TargetAudienceType = 'ALL' | 'DEPARTMENT' | 'LOCATION';
 
+export interface Department {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface AppUser {
   id: string;
   email: string;

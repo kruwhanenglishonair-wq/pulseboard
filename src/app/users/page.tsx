@@ -34,7 +34,8 @@ export default function UsersManagementPage() {
     refreshData,
     addUser,
     updateUser,
-    deleteUser
+    deleteUser,
+    departments
   } = useAnnouncementStore();
   const { showToast } = useToast();
 
@@ -545,12 +546,14 @@ export default function UsersManagementPage() {
                       background: '#fff'
                     }}
                   >
-                    <option value="Platform Engineering">Platform Engineering</option>
-                    <option value="Product Design">Product Design</option>
-                    <option value="People & HR">People & HR</option>
-                    <option value="Sales & Growth">Sales & Growth</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Executive Management">Executive Management</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                    {!departments.some((d) => d.name === newDept) && (
+                      <option value={newDept}>{newDept}</option>
+                    )}
                   </select>
                 </div>
 
@@ -677,8 +680,7 @@ export default function UsersManagementPage() {
                   <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
                     Department
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={editDept}
                     onChange={(e) => setEditDept(e.target.value)}
                     style={{
@@ -686,9 +688,19 @@ export default function UsersManagementPage() {
                       padding: '9px 12px',
                       borderRadius: 8,
                       border: '1px solid #cbd5e1',
-                      fontSize: 13
+                      fontSize: 13,
+                      background: '#fff'
                     }}
-                  />
+                  >
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                    {!departments.some((d) => d.name === editDept) && (
+                      <option value={editDept}>{editDept}</option>
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>

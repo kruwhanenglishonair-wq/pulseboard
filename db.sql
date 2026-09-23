@@ -411,6 +411,42 @@ CREATE POLICY "Admins view webhook logs"
     TO anon, authenticated
     USING (true);
 
+-- 12. Company Departments Table & Policies
+CREATE TABLE IF NOT EXISTS public.departments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT UNIQUE NOT NULL,
+    description TEXT DEFAULT '',
+    color TEXT DEFAULT '#3b82f6',
+    icon TEXT DEFAULT 'Layers',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.departments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Read departments" ON public.departments;
+CREATE POLICY "Read departments"
+    ON public.departments FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+DROP POLICY IF EXISTS "Manage departments" ON public.departments;
+CREATE POLICY "Manage departments"
+    ON public.departments FOR ALL
+    TO anon, authenticated
+    USING (true)
+    WITH CHECK (true);
+
+-- Starter Company Departments
+INSERT INTO public.departments (name, description, color, icon) VALUES
+    ('Platform Engineering', 'Core infrastructure, software development, site reliability, and developer tooling.', '#3b82f6', 'Code'),
+    ('Product Design', 'UI/UX research, design systems, visual branding, and product user experience.', '#ec4899', 'Palette'),
+    ('People & HR', 'Employee lifecycle, onboarding, corporate wellness, culture, and talent acquisition.', '#10b981', 'HeartHandshake'),
+    ('Sales & Growth', 'Client partnerships, inbound sales pipelines, market growth, and revenue operations.', '#f59e0b', 'TrendingUp'),
+    ('Operations & Facilities', 'Global logistics, office infrastructure, procurement, and workspace safety.', '#8b5cf6', 'Building2'),
+    ('Executive Management', 'Strategic leadership, company direction, investor relations, and corporate governance.', '#6366f1', 'ShieldCheck')
+ON CONFLICT (name) DO NOTHING;
+
 -- ==============================================================================
 -- 14. Initial System Administrator Setup (Dementor Admin)
 -- ==============================================================================
@@ -430,4 +466,5 @@ INSERT INTO public.app_users (
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&fit=crop&crop=faces'
 )
 ON CONFLICT (email) DO NOTHING;
+
 
