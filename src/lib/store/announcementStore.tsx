@@ -71,13 +71,13 @@ const generateUUID = (): string => {
 };
 
 const STORAGE_KEYS = {
-  USERS: 'pulseboard_users_v3',
-  AUTH_USER: 'pulseboard_auth_user_v3', // localStorage (Remember Me)
-  SESSION_USER: 'pulseboard_session_user_v3', // sessionStorage
-  ANNOUNCEMENTS: 'pulseboard_announcements_v3',
-  COMMENTS: 'pulseboard_comments_v3',
-  EVENTS: 'pulseboard_events_v3',
-  ACKS: 'pulseboard_acks_v3'
+  USERS: 'powerhouse_users_v1',
+  AUTH_USER: 'powerhouse_auth_user_v1', // localStorage (Remember Me)
+  SESSION_USER: 'powerhouse_session_user_v1', // sessionStorage
+  ANNOUNCEMENTS: 'powerhouse_announcements_v1',
+  COMMENTS: 'powerhouse_comments_v1',
+  EVENTS: 'powerhouse_events_v1',
+  ACKS: 'powerhouse_acks_v1'
 };
 
 export const AnnouncementStoreProvider = ({ children }: { children: ReactNode }) => {
@@ -111,7 +111,7 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
 
     try {
       // 1. Load users list from localStorage first
-      const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+      const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS) || localStorage.getItem('pulseboard_users_v3');
       let activeUsers = MOCK_APP_USERS;
       if (storedUsers) {
         try {
@@ -123,8 +123,8 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       }
 
       // 2. Check Remember Me in localStorage or Session in sessionStorage
-      const persistentUser = localStorage.getItem(STORAGE_KEYS.AUTH_USER);
-      const sessionUser = sessionStorage.getItem(STORAGE_KEYS.SESSION_USER);
+      const persistentUser = localStorage.getItem(STORAGE_KEYS.AUTH_USER) || localStorage.getItem('pulseboard_auth_user_v3');
+      const sessionUser = sessionStorage.getItem(STORAGE_KEYS.SESSION_USER) || sessionStorage.getItem('pulseboard_session_user_v3');
       const userToRestore = persistentUser || sessionUser;
 
       if (userToRestore) {
@@ -138,26 +138,26 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       }
 
       // 3. Load announcements, comments, events from storage
-      const storedAnnouncements = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
+      const storedAnnouncements = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS) || localStorage.getItem('pulseboard_announcements_v3');
       if (storedAnnouncements) setAnnouncements(JSON.parse(storedAnnouncements));
 
-      const storedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
+      const storedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS) || localStorage.getItem('pulseboard_comments_v3');
       if (storedComments) setComments(JSON.parse(storedComments));
 
-      const storedEvents = localStorage.getItem(STORAGE_KEYS.EVENTS);
+      const storedEvents = localStorage.getItem(STORAGE_KEYS.EVENTS) || localStorage.getItem('pulseboard_events_v3');
       if (storedEvents) setEvents(JSON.parse(storedEvents));
 
-      const storedAcks = localStorage.getItem(STORAGE_KEYS.ACKS);
+      const storedAcks = localStorage.getItem(STORAGE_KEYS.ACKS) || localStorage.getItem('pulseboard_acks_v3');
       if (storedAcks) setAcknowledgements(JSON.parse(storedAcks));
 
       // Check for locally saved custom credentials (useful when testing on localhost)
-      const customUrl = localStorage.getItem('pulseboard_supabase_url');
-      const customKey = localStorage.getItem('pulseboard_supabase_key');
+      const customUrl = localStorage.getItem('powerhouse_supabase_url') || localStorage.getItem('pulseboard_supabase_url');
+      const customKey = localStorage.getItem('powerhouse_supabase_key') || localStorage.getItem('pulseboard_supabase_key');
       if (customUrl && customKey) {
         const cleanedUrl = cleanSupabaseUrl(customUrl);
         const cleanedKey = cleanSupabaseKey(customKey);
-        localStorage.setItem('pulseboard_supabase_url', cleanedUrl);
-        localStorage.setItem('pulseboard_supabase_key', cleanedKey);
+        localStorage.setItem('powerhouse_supabase_url', cleanedUrl);
+        localStorage.setItem('powerhouse_supabase_key', cleanedKey);
         setSupabaseConfig(cleanedUrl, cleanedKey);
         setIsSupabaseLive(true);
       }
@@ -273,8 +273,8 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
       const cleanUrl = cleanSupabaseUrl(url);
       const cleanKey = cleanSupabaseKey(key);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('pulseboard_supabase_url', cleanUrl);
-        localStorage.setItem('pulseboard_supabase_key', cleanKey);
+        localStorage.setItem('powerhouse_supabase_url', cleanUrl);
+        localStorage.setItem('powerhouse_supabase_key', cleanKey);
       }
       setSupabaseConfig(cleanUrl, cleanKey);
       setIsSupabaseLive(true);
@@ -457,7 +457,9 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
     setCurrentUser(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
+      localStorage.removeItem('pulseboard_auth_user_v3');
       sessionStorage.removeItem(STORAGE_KEYS.SESSION_USER);
+      sessionStorage.removeItem('pulseboard_session_user_v3');
     }
   };
 

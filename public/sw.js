@@ -1,5 +1,5 @@
-// PulseBoard Service Worker
-const CACHE_NAME = 'pulseboard-v1';
+// Powerhouse Service Worker
+const CACHE_NAME = 'powerhouse-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',

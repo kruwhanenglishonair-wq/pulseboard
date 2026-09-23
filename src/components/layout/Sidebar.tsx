@@ -84,7 +84,7 @@ export const Sidebar = () => {
           </div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 17, color: '#0f172a', letterSpacing: '-0.02em' }}>
-              PulseBoard
+              Powerhouse
             </div>
             <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
               Company Portal

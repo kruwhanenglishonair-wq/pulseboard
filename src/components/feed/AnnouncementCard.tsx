@@ -273,7 +273,7 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement
           )}
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-              {announcement.author?.full_name || 'PulseBoard Admin'}
+              {announcement.author?.full_name || 'Powerhouse Admin'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               {announcement.author?.department} • 2h ago

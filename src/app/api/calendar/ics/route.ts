@@ -10,7 +10,7 @@ export async function GET() {
   const fullIcs = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//PulseBoard//Company Calendar Feed//EN',
+    'PRODID:-//Powerhouse//Company Calendar Feed//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'X-WR-CALNAME:Company Announcements & Events',

@@ -1,6 +1,6 @@
 {
-  "name": "MyWebSite",
-  "short_name": "MySite",
+  "name": "Powerhouse",
+  "short_name": "Powerhouse",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

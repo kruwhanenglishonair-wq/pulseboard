@@ -6,13 +6,13 @@ import { AppShell } from '@/components/layout/AppShell';
 import { PwaPrompt } from '@/components/ui/PwaPrompt';
 
 export const metadata: Metadata = {
-  title: 'PulseBoard | Company Announcements & Compliance Hub',
+  title: 'Powerhouse | Company Announcements & Compliance Hub',
   description: 'Internal communications, mandatory policy sign-offs, and company event calendar.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'PulseBoard'
+    title: 'Powerhouse'
   },
   icons: {
     icon: [

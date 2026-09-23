@@ -71,7 +71,7 @@ export const Header = () => {
                 color: '#0f172a'
               }}
             >
-              PulseBoard
+              Powerhouse
             </div>
             <div
               style={{

@@ -292,7 +292,7 @@ export default function AnnouncementDetailPage({ params }: { params: Promise<{ i
             )}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {announcement.author?.full_name || 'PulseBoard Admin'}
+                {announcement.author?.full_name || 'Powerhouse Admin'}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 {announcement.author?.department} • {announcement.author?.location}

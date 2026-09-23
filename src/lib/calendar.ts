@@ -15,11 +15,11 @@ export const generateIcsContent = (event: CompanyEvent): string => {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//PulseBoard//Company Announcements//EN',
+    'PRODID:-//Powerhouse//Company Announcements//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:pulseboard-${event.id}@company.internal`,
+    `UID:powerhouse-${event.id}@company.internal`,
     `DTSTAMP:${dtStamp}`,
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,

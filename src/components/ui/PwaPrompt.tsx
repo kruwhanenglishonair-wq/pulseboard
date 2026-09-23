@@ -32,7 +32,7 @@ export const PwaPrompt = () => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then((reg) => console.log('PulseBoard SW registered:', reg.scope))
+        .then((reg) => console.log('Powerhouse SW registered:', reg.scope))
         .catch((err) => console.warn('SW registration failed:', err));
     }
 
@@ -41,7 +41,7 @@ export const PwaPrompt = () => {
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
-      alert('To install PulseBoard on iOS: Tap Share ⎙ and select "Add to Home Screen"');
+      alert('To install Powerhouse on iOS: Tap Share ⎙ and select "Add to Home Screen"');
       return;
     }
     deferredPrompt.prompt();
@@ -95,7 +95,7 @@ export const PwaPrompt = () => {
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, color: '#f8fafc' }}>
-            Install PulseBoard App
+            Install Powerhouse App
           </div>
           <div style={{ fontSize: 12, color: '#94a3b8' }}>
             Get instant alerts & offline compliance sign-off

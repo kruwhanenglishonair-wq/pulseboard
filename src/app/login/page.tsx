@@ -137,7 +137,7 @@ export default function LoginPage() {
             <Sparkles size={28} color="#fff" />
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: 6 }}>
-            PulseBoard Portal
+            Powerhouse Portal
           </h1>
           <p style={{ fontSize: 13, color: '#64748b' }}>
             Internal Company Announcement & Compliance Hub
@@ -308,7 +308,7 @@ export default function LoginPage() {
               className="btn btn-primary"
               style={{ width: '100%', padding: '12px', fontSize: 15, borderRadius: 10, marginTop: 6 }}
             >
-              <span>{loading ? 'Authenticating...' : 'Sign In to PulseBoard'}</span>
+              <span>{loading ? 'Authenticating...' : 'Sign In to Powerhouse'}</span>
               <ArrowRight size={16} />
             </button>
           </form>

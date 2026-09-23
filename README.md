@@ -1,6 +1,6 @@
-# 🚀 PulseBoard — Internal Company Announcement & Compliance PWA
+# 🚀 Powerhouse — Internal Company Announcement & Compliance PWA
 
-**PulseBoard** is an enterprise-grade Progressive Web App (PWA) designed for modern companies to broadcast announcements, manage policy sign-offs, track mandatory read receipts, and synchronize company calendars.
+**Powerhouse** is an enterprise-grade Progressive Web App (PWA) designed for modern companies to broadcast announcements, manage policy sign-offs, track mandatory read receipts, and synchronize company calendars.
 
 Built with **Next.js 16 (App Router + Turbopack)**, **TypeScript**, **Vanilla CSS Design System**, **Supabase (PostgreSQL + RLS)**, and optimized for **Vercel** deployment.
 
@@ -76,7 +76,7 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/your/webhook/url
 TEAMS_WEBHOOK_URL=
 ```
 
-> **Note**: If you run PulseBoard without setting Supabase keys, the app seamlessly runs in **Demo Mode**, using persistent in-memory/localStorage state so you can test all features and role-switching immediately!
+> **Note**: If you run Powerhouse without setting Supabase keys, the app seamlessly runs in **Demo Mode**, using persistent in-memory/localStorage state so you can test all features and role-switching immediately!
 
 ---
 
@@ -101,7 +101,7 @@ TEAMS_WEBHOOK_URL=
 1. **Push your code to GitHub / GitLab**:
    ```bash
    git add .
-   git commit -m "feat: complete PulseBoard announcement PWA"
+   git commit -m "feat: complete Powerhouse announcement PWA"
    git push origin main
    ```
 
@@ -121,7 +121,7 @@ TEAMS_WEBHOOK_URL=
 ## 📱 Installing the PWA
 
 - **iOS / Safari**: Open your deployed URL, tap the **Share** button (⎙), and select **"Add to Home Screen"**.
-- **Android / Chrome**: Tap the **"Install PulseBoard App"** banner at the bottom or the 3-dots menu -> **"Install app"**.
+- **Android / Chrome**: Tap the **"Install Powerhouse App"** banner at the bottom or the 3-dots menu -> **"Install app"**.
 - **Desktop (Chrome / Edge / Safari)**: Click the **Install** icon in the browser address bar.
 
 ---

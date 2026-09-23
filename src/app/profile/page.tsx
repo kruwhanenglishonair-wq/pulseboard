@@ -299,7 +299,7 @@ export default function ProfilePage() {
             <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, cursor: 'pointer' }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Slack Direct Alerts (@pulseboard-bot)
+                  Slack Direct Alerts (@powerhouse-bot)
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   Send direct bot alerts to your Slack account whenever an announcement is targeted to {currentUser?.department || 'your department'}.

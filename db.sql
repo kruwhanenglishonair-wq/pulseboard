@@ -1,5 +1,5 @@
 -- ==============================================================================
--- PulseBoard: Company Announcement Board & Compliance Hub
+-- Powerhouse: Company Announcement Board & Compliance Hub
 -- Complete Supabase Schema, Row Level Security (RLS), Triggers & Starter Data
 -- Instructions: Paste and run this entire script into your Supabase SQL Editor.
 -- ==============================================================================

@@ -61,7 +61,7 @@ export const sendAnnouncementWebhook = async (
                 elements: [
                   {
                     type: 'mrkdwn',
-                    text: `Posted via *PulseBoard* • ${announcement.requires_acknowledgement ? '⚠️ *Action Required: Mandatory Read*' : 'Informational'}`
+                    text: `Posted via *Powerhouse* • ${announcement.requires_acknowledgement ? '⚠️ *Action Required: Mandatory Read*' : 'Informational'}`
                   }
                 ]
               }

@@ -16,7 +16,13 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     setMounted(true);
     // If not logged in and not already on /login, redirect to /login
-    const persistent = localStorage.getItem('pulseboard_auth_user_v2') || sessionStorage.getItem('pulseboard_session_user_v2');
+    const persistent =
+      localStorage.getItem('powerhouse_auth_user_v1') ||
+      localStorage.getItem('pulseboard_auth_user_v3') ||
+      localStorage.getItem('pulseboard_auth_user_v2') ||
+      sessionStorage.getItem('powerhouse_session_user_v1') ||
+      sessionStorage.getItem('pulseboard_session_user_v3') ||
+      sessionStorage.getItem('pulseboard_session_user_v2');
     if (!persistent && !currentUser && pathname !== '/login') {
       router.push('/login');
     }
