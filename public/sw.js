@@ -1,5 +1,5 @@
-// Powerhouse Service Worker
-const CACHE_NAME = 'powerhouse-v3';
+// Powerhouse Service Worker v4 with Push & Scheduled Notification Handlers
+const CACHE_NAME = 'powerhouse-v4';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -7,7 +7,9 @@ const STATIC_ASSETS = [
   '/icons/icon.svg',
   '/apple-touch-icon.png',
   '/favicon-96x96.png',
-  '/favicon.ico'
+  '/favicon.ico',
+  '/web-app-manifest-192x192.png',
+  '/web-app-manifest-512x512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,6 +37,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Cache & network routing
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
@@ -78,4 +81,81 @@ self.addEventListener('fetch', (event) => {
       return cachedResponse || fetchPromise;
     })
   );
+});
+
+// ==============================================================================
+// Web Push & Mobile Notification Listeners
+// ==============================================================================
+
+// Handle click on mobile notifications to focus or open the target announcement
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+// Handle incoming Web Push events from server / cloud
+self.addEventListener('push', (event) => {
+  let data = { title: '📢 Powerhouse Announcement', body: 'A new company update has been published.', url: '/' };
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    if (event.data) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: '/web-app-manifest-192x192.png',
+    badge: '/favicon-96x96.png',
+    vibrate: [200, 100, 200],
+    tag: data.tag || `powerhouse-${Date.now()}`,
+    data: { url: data.url || '/' }
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+// Handle messages from client to show or schedule notifications
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+
+  if (event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, options } = event.data;
+    self.registration.showNotification(title || 'Powerhouse Update', {
+      icon: '/web-app-manifest-192x192.png',
+      badge: '/favicon-96x96.png',
+      vibrate: [200, 100, 200],
+      ...options
+    });
+  }
+
+  if (event.data.type === 'SCHEDULE_NOTIFICATION') {
+    const { title, options, delayMs } = event.data;
+    if (delayMs && delayMs > 0) {
+      setTimeout(() => {
+        self.registration.showNotification(title || 'Powerhouse Update', {
+          icon: '/web-app-manifest-192x192.png',
+          badge: '/favicon-96x96.png',
+          vibrate: [200, 100, 200],
+          ...options
+        });
+      }, delayMs);
+    }
+  }
 });

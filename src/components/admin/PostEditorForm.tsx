@@ -16,9 +16,16 @@ import {
   Bot
 } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
-import { Announcement, AnnouncementCategory, AnnouncementPriority, TargetAudienceType } from '@/lib/types';
+import { Announcement, AnnouncementCategory, AnnouncementPriority, AnnouncementStatus, TargetAudienceType } from '@/lib/types';
 import { sendAnnouncementWebhook } from '@/lib/webhook';
 import { useToast } from '@/components/ui/Toast';
+import {
+  dispatchSystemNotification,
+  scheduleServiceWorkerNotification,
+  markAnnouncementAsNotified,
+  requestNotificationPermission,
+  getNotificationPermission
+} from '@/lib/notifications';
 
 interface PostEditorFormProps {
   initialData?: Partial<Announcement>;
@@ -59,13 +66,16 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
 
     setSubmitting(true);
 
+    const isFuture = scheduledAt && new Date(scheduledAt).getTime() > Date.now();
+    const effectiveStatus: AnnouncementStatus = status === 'DRAFT' ? 'DRAFT' : isFuture ? 'SCHEDULED' : 'PUBLISHED';
+
     const postPayload: Partial<Announcement> = {
       title: title.trim(),
       summary: summary.trim(),
       content: content.trim(),
       category,
       priority,
-      status,
+      status: effectiveStatus,
       is_pinned: isPinned,
       requires_acknowledgement: requiresAck,
       allow_comments: allowComments,
@@ -84,11 +94,40 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
         showToast('Announcement updated successfully!', 'success');
       } else {
         savedPost = createAnnouncement(postPayload);
-        showToast('Announcement published to company feed!', 'success');
+        if (effectiveStatus === 'SCHEDULED') {
+          showToast(`Announcement scheduled for ${new Date(scheduledAt).toLocaleString()}!`, 'success');
+        } else {
+          showToast('Announcement published to company feed!', 'success');
+        }
       }
 
-      // Send Webhook alert if requested
-      if (dispatchSlack && status === 'PUBLISHED') {
+      // Check notification permission on device if not yet determined
+      if (getNotificationPermission() === 'default') {
+        requestNotificationPermission();
+      }
+
+      // Handle Mobile Alerts & Timer Scheduling
+      if (effectiveStatus === 'SCHEDULED') {
+        const delayMs = new Date(scheduledAt).getTime() - Date.now();
+        if (delayMs > 0) {
+          scheduleServiceWorkerNotification(savedPost, delayMs);
+        }
+      } else if (effectiveStatus === 'PUBLISHED') {
+        // Instant mobile notification
+        dispatchSystemNotification(
+          savedPost.priority === 'URGENT' ? `🚨 URGENT: ${savedPost.title}` : `📢 ${savedPost.title}`,
+          {
+            body: `[${savedPost.category}] ${savedPost.summary}`,
+            url: `/announcements/${savedPost.id}`,
+            tag: `announcement-${savedPost.id}`,
+            isUrgent: savedPost.priority === 'URGENT'
+          }
+        );
+        markAnnouncementAsNotified(savedPost.id);
+      }
+
+      // Send Webhook alert if requested and already published
+      if (dispatchSlack && effectiveStatus === 'PUBLISHED') {
         const webhookRes = await sendAnnouncementWebhook(savedPost, 'slack');
         if (webhookRes.success) {
           showToast('Alert broadcast to Slack #announcements channel!', 'info');
@@ -518,10 +557,22 @@ export const PostEditorForm: React.FC<PostEditorFormProps> = ({ initialData, isE
           type="submit"
           disabled={submitting}
           className="btn btn-primary"
-          style={{ minWidth: 160 }}
+          style={{ minWidth: 180 }}
         >
-          <Send size={16} />
-          <span>{submitting ? 'Publishing...' : isEditing ? 'Save Changes' : 'Publish Announcement'}</span>
+          {scheduledAt && new Date(scheduledAt).getTime() > Date.now() ? (
+            <Clock size={16} />
+          ) : (
+            <Send size={16} />
+          )}
+          <span>
+            {submitting
+              ? 'Saving...'
+              : isEditing
+              ? 'Save Changes'
+              : scheduledAt && new Date(scheduledAt).getTime() > Date.now()
+              ? `Schedule for ${new Date(scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              : 'Publish Announcement'}
+          </span>
         </button>
       </div>
     </form>

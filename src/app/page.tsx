@@ -8,6 +8,7 @@ import { useAnnouncementStore } from '@/lib/store/announcementStore';
 import { UrgentAlertBanner } from '@/components/feed/UrgentAlertBanner';
 import { FeedFilters } from '@/components/feed/FeedFilters';
 import { AnnouncementCard } from '@/components/feed/AnnouncementCard';
+import { NotificationPrompt } from '@/components/ui/NotificationPrompt';
 
 function HomeFeedContent() {
   const { announcements, currentUser, departments } = useAnnouncementStore();
@@ -119,6 +120,9 @@ function HomeFeedContent() {
 
       {/* Urgent Critical Alert Banner */}
       <UrgentAlertBanner urgentAnnouncements={urgentUnacknowledged} />
+
+      {/* Mobile Notification Enrollment Prompt */}
+      <NotificationPrompt />
 
       {/* Filter and Search Bar with Department Support */}
       <FeedFilters

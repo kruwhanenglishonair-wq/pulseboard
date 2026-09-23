@@ -13,10 +13,18 @@ import {
   Bookmark,
   CheckCircle2,
   ExternalLink,
-  Save
+  Save,
+  Smartphone,
+  Send
 } from 'lucide-react';
 import { useAnnouncementStore } from '@/lib/store/announcementStore';
 import { useToast } from '@/components/ui/Toast';
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  sendTestNotification,
+  NotificationPermissionStatus
+} from '@/lib/notifications';
 
 export default function ProfilePage() {
   const { currentUser, announcements } = useAnnouncementStore();
@@ -28,6 +36,11 @@ export default function ProfilePage() {
   const [emailUrgent, setEmailUrgent] = useState(currentUser?.notification_preferences?.email_urgent ?? true);
   const [emailDigest, setEmailDigest] = useState(currentUser?.notification_preferences?.email_digest ?? true);
   const [slackAlerts, setSlackAlerts] = useState(currentUser?.notification_preferences?.slack_alerts ?? false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermissionStatus>('default');
+
+  React.useEffect(() => {
+    setNotifPermission(getNotificationPermission());
+  }, []);
 
   const bookmarkedPosts = announcements.filter((a) => a.user_bookmarked);
   const acknowledgedPosts = announcements.filter((a) => a.user_acknowledged);
@@ -312,6 +325,83 @@ export default function ProfilePage() {
                 style={{ width: 20, height: 20, accentColor: 'var(--brand-primary)' }}
               />
             </label>
+          </div>
+
+          {/* Mobile Device Push Notifications Status & Test Card */}
+          <div
+            style={{
+              padding: '16px 18px',
+              borderRadius: 14,
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 14,
+              marginTop: 6
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: notifPermission === 'granted' ? '#dcfce7' : '#eff6ff',
+                  color: notifPermission === 'granted' ? '#15803d' : 'var(--brand-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                <Smartphone size={20} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Mobile Device Push & Lock Screen Alerts
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Status: {notifPermission === 'granted' ? '✅ Active (Instant alerts on publish & schedule)' : notifPermission === 'denied' ? '❌ Blocked in browser settings' : '⚠️ Alerts not yet permitted on this device'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {notifPermission !== 'granted' ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const res = await requestNotificationPermission();
+                    setNotifPermission(res);
+                    if (res === 'granted') {
+                      showToast('Mobile notifications enabled successfully!', 'success');
+                    } else {
+                      showToast('Please enable notifications in device permissions', 'error');
+                    }
+                  }}
+                  className="btn btn-primary btn-sm"
+                  style={{ gap: 6 }}
+                >
+                  <Bell size={14} />
+                  <span>Enable Mobile Alerts</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sendTestNotification();
+                    showToast('🔔 Test notification sent to this mobile device!', 'info');
+                  }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ gap: 6, borderColor: '#cbd5e1' }}
+                >
+                  <Send size={14} />
+                  <span>Send Test Alert to Phone</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>

@@ -6,12 +6,39 @@ import { useAnnouncementStore } from '@/lib/store/announcementStore';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { checkAndDispatchScheduledAnnouncements } from '@/lib/notifications';
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser } = useAnnouncementStore();
+  const { currentUser, announcements, updateAnnouncement } = useAnnouncementStore();
   const [mounted, setMounted] = useState(false);
+
+  // Background Announcement Scheduler & Mobile Notification Dispatcher
+  useEffect(() => {
+    if (!announcements || announcements.length === 0) return;
+
+    // Check immediately on mount/load
+    checkAndDispatchScheduledAnnouncements(announcements, updateAnnouncement);
+
+    // Periodic check every 10 seconds for scheduled publish times
+    const interval = setInterval(() => {
+      checkAndDispatchScheduledAnnouncements(announcements, updateAnnouncement);
+    }, 10000);
+
+    // Check when user returns to app / unlocks mobile screen
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndDispatchScheduledAnnouncements(announcements, updateAnnouncement);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [announcements, updateAnnouncement]);
 
   useEffect(() => {
     setMounted(true);
