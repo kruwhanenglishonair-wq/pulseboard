@@ -1225,9 +1225,24 @@ export const AnnouncementStoreProvider = ({ children }: { children: ReactNode })
 
   const unreadCount = unreadAnnouncements.length;
 
-  // Whenever unread count changes, update native mobile app icon badge via Badging API!
+  // Whenever unread count changes or app regains focus/visibility, sync native mobile app icon badge!
   useEffect(() => {
     updateAppBadge(unreadCount);
+
+    const handleSyncBadge = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        updateAppBadge(unreadCount);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      document.addEventListener('visibilitychange', handleSyncBadge);
+      window.addEventListener('focus', handleSyncBadge);
+      return () => {
+        document.removeEventListener('visibilitychange', handleSyncBadge);
+        window.removeEventListener('focus', handleSyncBadge);
+      };
+    }
   }, [unreadCount]);
 
   const markAsRead = (announcementId: string) => {

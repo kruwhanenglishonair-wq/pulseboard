@@ -260,13 +260,14 @@ export const scheduleServiceWorkerNotification = (announcement: Announcement, de
 };
 
 /**
- * Update the native App Icon Badge on Mobile (iOS 16.4+ / Android PWA)
- * This renders the red circle with the unread count directly on the home screen mobile app icon.
+ * Update the native App Icon Badge on Mobile (iOS 16.4+ & Android PWA)
+ * On iOS/Desktop: uses Web Badging API navigator.setAppBadge().
+ * On Android: Android OS displays the home screen red icon badge/dot based on active notifications in the status bar.
  */
 export const updateAppBadge = async (count: number) => {
   if (typeof window === 'undefined') return;
 
-  // 1. Native Web Badging API (home screen mobile icon badge)
+  // 1. Native Web Badging API (iOS 16.4+ PWA and desktop)
   if ('setAppBadge' in navigator) {
     try {
       if (count > 0) {
@@ -280,16 +281,46 @@ export const updateAppBadge = async (count: number) => {
   }
 
   // 2. Inform active Service Worker
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+  if ('serviceWorker' in navigator) {
     try {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'SET_APP_BADGE',
-        count
-      });
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.active) {
+        reg.active.postMessage({
+          type: 'SET_APP_BADGE',
+          count
+        });
+      }
     } catch (e) {}
   }
 
-  // 3. Dynamic Browser Tab Title with Badge Counter
+  // 3. Android Home Screen Icon Badging Bridge:
+  // Android OS launchers (Xiaomi/MIUI, Samsung, Pixel) display the red circle/dot on the home screen icon
+  // exclusively when an active notification is present in the Android notification shade.
+  if (isNotificationSupported() && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg) {
+        if (count > 0) {
+          await reg.showNotification(`🔴 Powerhouse: ${count} New Notice${count > 1 ? 's' : ''}`, {
+            tag: 'powerhouse-unread-badge',
+            body: `You have ${count} unread announcement${count > 1 ? 's' : ''}. Tap to open.`,
+            icon: '/web-app-manifest-192x192.png',
+            badge: '/favicon-96x96.png',
+            renotify: false,
+            silent: true,
+            data: { url: '/' }
+          } as any);
+        } else {
+          const notifications = await reg.getNotifications({ tag: 'powerhouse-unread-badge' });
+          notifications.forEach((n) => n.close());
+        }
+      }
+    } catch (err) {
+      console.warn('Android notification badge bridge failed:', err);
+    }
+  }
+
+  // 4. Dynamic Browser Tab Title with Badge Counter
   try {
     const titleRegex = /^\(\d+\)\s*/;
     const cleanTitle = document.title.replace(titleRegex, '');
@@ -306,5 +337,14 @@ export const updateAppBadge = async (count: number) => {
  */
 export const clearAppBadge = async () => {
   await updateAppBadge(0);
+  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg) {
+        const notifications = await reg.getNotifications({ tag: 'powerhouse-unread-badge' });
+        notifications.forEach((n) => n.close());
+      }
+    } catch (e) {}
+  }
 };
 

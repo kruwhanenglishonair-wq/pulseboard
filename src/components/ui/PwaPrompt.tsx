@@ -14,6 +14,14 @@ export const PwaPrompt = () => {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
+    // Register service worker unconditionally for mobile notifications and badging
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((reg) => console.log('Powerhouse SW registered:', reg.scope))
+        .catch((err) => console.warn('SW registration failed:', err));
+    }
+
     // Check if already in standalone mode
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
@@ -27,14 +35,6 @@ export const PwaPrompt = () => {
     };
 
     window.addEventListener('beforeinstallprompt', handler);
-
-    // Register service worker if available
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((reg) => console.log('Powerhouse SW registered:', reg.scope))
-        .catch((err) => console.warn('SW registration failed:', err));
-    }
 
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);

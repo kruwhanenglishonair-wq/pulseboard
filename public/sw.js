@@ -1,5 +1,5 @@
-// Powerhouse Service Worker v4 with Push & Scheduled Notification Handlers
-const CACHE_NAME = 'powerhouse-v4';
+// Powerhouse Service Worker v5 with Push, Badging & Scheduled Notification Handlers
+const CACHE_NAME = 'powerhouse-v5';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -159,7 +159,7 @@ self.addEventListener('message', (event) => {
     }
   }
 
-  // Handle Home Screen App Icon Badge on Mobile
+  // Handle Home Screen App Icon Badge on Mobile (Web Badging API & Android Launcher Bridge)
   if (event.data.type === 'SET_APP_BADGE') {
     const count = event.data.count || 0;
     if ('setAppBadge' in self.navigator) {
@@ -169,5 +169,26 @@ self.addEventListener('message', (event) => {
         self.navigator.clearAppBadge().catch(() => {});
       }
     }
+
+    // Android Launcher Badging Bridge:
+    // Android launchers (Xiaomi MIUI/HyperOS, Samsung OneUI, Pixel) draw the red circle dot on the home screen icon
+    // based on active notifications in the Android notification shade.
+    try {
+      if (count > 0) {
+        self.registration.showNotification(`🔴 Powerhouse: ${count} New Notice${count > 1 ? 's' : ''}`, {
+          tag: 'powerhouse-unread-badge',
+          body: `You have ${count} unread announcement${count > 1 ? 's' : ''}. Tap to open.`,
+          icon: '/web-app-manifest-192x192.png',
+          badge: '/favicon-96x96.png',
+          renotify: false,
+          silent: true,
+          data: { url: '/' }
+        }).catch(() => {});
+      } else {
+        self.registration.getNotifications({ tag: 'powerhouse-unread-badge' }).then((notifications) => {
+          notifications.forEach((n) => n.close());
+        }).catch(() => {});
+      }
+    } catch (err) {}
   }
 });

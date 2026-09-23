@@ -697,8 +697,11 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    updateAppBadge(1);
+                  onClick={async () => {
+                    if (isNotificationSupported() && Notification.permission !== 'granted') {
+                      await requestNotificationPermission();
+                    }
+                    await updateAppBadge(1);
                     showToast('🔴 Home screen app icon badge set to 1! Look at your phone home screen.', 'success');
                   }}
                   className="btn btn-secondary btn-sm"
@@ -708,8 +711,11 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    updateAppBadge(5);
+                  onClick={async () => {
+                    if (isNotificationSupported() && Notification.permission !== 'granted') {
+                      await requestNotificationPermission();
+                    }
+                    await updateAppBadge(5);
                     showToast('🔴 Home screen app icon badge set to 5! Look at your phone home screen.', 'success');
                   }}
                   className="btn btn-secondary btn-sm"
@@ -719,8 +725,8 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    clearAppBadge();
+                  onClick={async () => {
+                    await clearAppBadge();
                     showToast('Cleared home screen app icon badge.', 'info');
                   }}
                   className="btn btn-secondary btn-sm"
@@ -728,6 +734,9 @@ export const TestNotificationModal: React.FC<TestNotificationModalProps> = ({
                 >
                   Clear Badge
                 </button>
+              </div>
+              <div style={{ fontSize: 10, color: '#991b1b', lineHeight: 1.4, background: '#fee2e2', padding: '6px 8px', borderRadius: 6, marginTop: 4 }}>
+                💡 <strong>Android Note:</strong> Android launchers (Xiaomi MIUI/HyperOS, Samsung, Pixel) display the red dot badge on the home screen icon when an active notice is in the notification bar. Make sure Notifications are allowed and <em>Settings &gt; Notifications &gt; App icon badges</em> is turned ON.
               </div>
             </div>
           </div>
