@@ -431,153 +431,201 @@ export const CalendarView = () => {
             borderRadius: 16,
             overflow: 'hidden',
             border: '1px solid #e2e8f0',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.04)'
+            boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+            overflowX: 'auto'
           }}
         >
-          {/* Weekday Names Header */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(7, 1fr)',
-              background: '#f8fafc',
-              borderBottom: '1px solid #e2e8f0'
-            }}
-          >
-            {WEEKDAYS.map((day, idx) => (
-              <div
-                key={day}
-                style={{
-                  padding: '12px 8px',
-                  textAlign: 'center',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: idx === 0 || idx === 6 ? '#94a3b8' : '#475569'
-                }}
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Days Grid */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(7, 1fr)',
-              background: '#e2e8f0',
-              gap: 1
-            }}
-          >
-            {calendarDays.map((cell, idx) => {
-              return (
+          <div style={{ minWidth: 700, width: '100%' }}>
+            {/* Weekday Names Header */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                background: '#f8fafc',
+                borderBottom: '1px solid #e2e8f0',
+                width: '100%'
+              }}
+            >
+              {WEEKDAYS.map((day, idx) => (
                 <div
-                  key={idx}
-                  onClick={() => {
-                    if (cell.isCurrentMonth) {
-                      openAddModalForDate(cell.date);
-                    }
-                  }}
+                  key={day}
                   style={{
-                    background: cell.isCurrentMonth ? '#ffffff' : '#f8fafc',
-                    minHeight: 110,
-                    padding: 8,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-start',
-                    cursor: cell.isCurrentMonth ? 'pointer' : 'default',
-                    opacity: cell.isCurrentMonth ? 1 : 0.45,
-                    transition: 'background 120ms ease'
+                    padding: '12px 8px',
+                    textAlign: 'center',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: idx === 0 || idx === 6 ? '#94a3b8' : '#475569',
+                    minWidth: 0,
+                    overflow: 'hidden'
                   }}
                 >
-                  {/* Date Number Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Days Grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                background: '#e2e8f0',
+                gap: 1,
+                width: '100%'
+              }}
+            >
+              {calendarDays.map((cell, idx) => {
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      if (cell.isCurrentMonth) {
+                        openAddModalForDate(cell.date);
+                      }
+                    }}
+                    style={{
+                      background: cell.isCurrentMonth ? '#ffffff' : '#f8fafc',
+                      minHeight: 110,
+                      padding: 8,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'flex-start',
+                      cursor: cell.isCurrentMonth ? 'pointer' : 'default',
+                      opacity: cell.isCurrentMonth ? 1 : 0.45,
+                      transition: 'background 120ms ease',
+                      minWidth: 0,
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Date Number Header */}
+                    <div
                       style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 12,
-                        fontWeight: cell.isToday ? 800 : 600,
-                        background: cell.isToday ? 'var(--brand-primary)' : 'transparent',
-                        color: cell.isToday ? '#ffffff' : '#1e293b'
+                        justifyContent: 'space-between',
+                        marginBottom: 6,
+                        minWidth: 0,
+                        width: '100%'
                       }}
                     >
-                      {cell.dayNumber}
-                    </span>
-
-                    {cell.events.length > 0 && (
                       <span
                         style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: '#64748b'
+                          width: 26,
+                          height: 26,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: cell.isToday ? 800 : 600,
+                          background: cell.isToday ? 'var(--brand-primary)' : 'transparent',
+                          color: cell.isToday ? '#ffffff' : '#1e293b',
+                          flexShrink: 0
                         }}
                       >
-                        {cell.events.length} {cell.events.length === 1 ? 'event' : 'events'}
+                        {cell.dayNumber}
                       </span>
-                    )}
-                  </div>
 
-                  {/* Scheduled Events on this day */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
-                    {cell.events.slice(0, 3).map((evt) => {
-                      const styles = getCategoryStyles(evt.category);
-                      const timeStr = new Date(evt.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                      return (
-                        <div
-                          key={evt.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedEvent(evt);
-                          }}
+                      {cell.events.length > 0 && (
+                        <span
                           style={{
-                            padding: '3px 6px',
-                            borderRadius: 6,
-                            background: styles.bg,
-                            borderLeft: `3px solid ${styles.dot}`,
-                            color: styles.color,
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: 700,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            cursor: 'pointer',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                            color: '#64748b',
+                            flexShrink: 0,
+                            whiteSpace: 'nowrap'
                           }}
-                          title={`${evt.title} (${timeStr})`}
                         >
-                          <span style={{ fontSize: 10, opacity: 0.85, flexShrink: 0 }}>{timeStr}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{evt.title}</span>
-                        </div>
-                      );
-                    })}
+                          {cell.events.length} {cell.events.length === 1 ? 'event' : 'events'}
+                        </span>
+                      )}
+                    </div>
 
-                    {cell.events.length > 3 && (
-                      <div
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: '#64748b',
-                          paddingLeft: 4,
-                          marginTop: 2
-                        }}
-                      >
-                        +{cell.events.length - 3} more
-                      </div>
-                    )}
+                    {/* Scheduled Events on this day */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                        minWidth: 0,
+                        width: '100%',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      {cell.events.slice(0, 3).map((evt) => {
+                        const styles = getCategoryStyles(evt.category);
+                        const timeStr = new Date(evt.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                        return (
+                          <div
+                            key={evt.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEvent(evt);
+                            }}
+                            style={{
+                              padding: '3px 6px',
+                              borderRadius: 6,
+                              background: styles.bg,
+                              borderLeft: `3px solid ${styles.dot}`,
+                              color: styles.color,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              minWidth: 0,
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              cursor: 'pointer',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                            }}
+                            title={`${evt.title} (${timeStr})`}
+                          >
+                            <span style={{ fontSize: 10, opacity: 0.85, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                              {timeStr}
+                            </span>
+                            <span
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {evt.title}
+                            </span>
+                          </div>
+                        );
+                      })}
+
+                      {cell.events.length > 3 && (
+                        <div
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: '#64748b',
+                            paddingLeft: 4,
+                            marginTop: 2,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          +{cell.events.length - 3} more
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
